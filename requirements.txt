@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+onnxruntime
+numpy
+pydantic
+python-dotenv
+aiohttp
