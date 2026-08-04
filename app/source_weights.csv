@@ -19,5 +19,8 @@ GData,0.55,Smaller engine with less consistent coverage
 AegisLab,0.55,Specialized research engine
 Qihoo-360,0.5,Lower accuracy on some samples
 Zoner,0.4,Smaller or less trusted engine
-Zillya,0.4,Less accurate in URL scans
+Forcepoint ThreatSeeker,0.85,Enterprise web threat intelligence
+Forcepoint,0.85,Enterprise web threat intelligence
+Google Safe Browsing,0.85,Widespread web threat detection
 Unknown,0.3,Default low weight for unrecognized engines
+

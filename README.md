@@ -49,6 +49,23 @@ The API will be available at `http://localhost:8000`. You can test the endpoints
 
 ## API Reference
 
+### Health Check
+
+Verify that the service is running and checking classifier model loading status.
+
+* **Endpoint:** `GET /health`
+* **Example Request using `curl`:**
+  ```bash
+  curl -X GET "http://localhost:8000/health"
+  ```
+* **Example Response:**
+  ```json
+  {
+    "status": "healthy",
+    "classifier_loaded": true
+  }
+  ```
+
 ### Scan URL
 
 Submit a URL for threat analysis and custom weighted scoring.
@@ -90,14 +107,16 @@ Retrieve the current VirusTotal usage limits and API quotas.
 
 ### Scan SMS Message
 
-Scan an SMS message using the trained CNN-BiGRU deep learning model to detect spam/phishing threats.
+Scan an SMS message and receive both the **CNN-BiGRU deep learning model score** and the **VirusTotal URL threat score**. The Android client uses both sub-scores to make its final client-side ensemble decision.
 
 * **Endpoint:** `POST /scan-sms`
 * **Content-Type:** `application/json`
 * **Request Body:**
   ```json
   {
-    "message": "CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com"
+    "message": "CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com",
+    "has_url": true,
+    "extracted_url": "http://fake-claim.com"
   }
   ```
 
@@ -105,14 +124,64 @@ Scan an SMS message using the trained CNN-BiGRU deep learning model to detect sp
   ```bash
   curl -X POST "http://localhost:8000/scan-sms" \
        -H "Content-Type: application/json" \
-       -d "{\"message\": \"CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com\"}"
+       -d "{\"message\": \"CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com\", \"has_url\": true, \"extracted_url\": \"http://fake-claim.com\"}"
   ```
 
-* **Example Response:**
+
+* **Example Response (SMS with URL):**
   ```json
   {
     "message": "CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com",
-    "verdict": "spam",
-    "probability": 0.676306
+    "cnn_analysis": {
+      "score": 0.6763,
+      "verdict": "spam"
+    },
+    "url_analysis": {
+      "has_url": true,
+      "extracted_url": "http://fake-claim.com",
+      "score": 0.8500,
+      "verdict": "malicious",
+      "total_weight": 14.85,
+      "explanation": "Final verdict explanation:\nweighted_score = 12.6225 / 14.8500 = 0.8500\nFinal verdict threshold result: malicious\nEngine contributions:\n...",
+      "contributions": [
+        "Microsoft: category=clean, score=0.0, weight=0.95",
+        "Kaspersky: category=malicious, score=1.0, weight=0.9"
+      ]
+    }
   }
   ```
+
+* **Example Response (SMS without URL):**
+  ```json
+  {
+    "message": "Hey mom, I will be home for dinner around 7pm.",
+    "cnn_analysis": {
+      "score": 0.0018,
+      "verdict": "benign"
+    },
+    "url_analysis": {
+      "has_url": false,
+      "extracted_url": null,
+      "score": null,
+      "verdict": null,
+      "total_weight": null,
+      "explanation": "No URL found in the SMS message.",
+      "contributions": []
+    }
+  }
+  ```
+
+#### Response Fields Explanation (For Android Client Ensemble Decision)
+
+* `message` (`string`): The original raw SMS text analyzed.
+* `cnn_analysis` (`object`):
+  * `score` (`float`, `0.0` - `1.0`): The raw threat/spam probability score computed by the CNN-BiGRU deep learning model.
+  * `verdict` (`string`): CNN model classification (`"spam"` if `score >= 0.5`, else `"benign"`).
+* `url_analysis` (`object`):
+  * `has_url` (`boolean`): Indicates whether an HTTP/HTTPS/WWW URL was extracted from the SMS.
+  * `extracted_url` (`string|null`): The primary URL extracted from the SMS message.
+  * `score` (`float|null`, `0.0` - `1.0`): VirusTotal weighted threat score (`0.0` safe to `1.0` dangerous), or `null` if no URL is present.
+  * `verdict` (`string|null`): VirusTotal URL threat classification (`"malicious"`, `"suspicious"`, `"benign"`, or `null`).
+  * `total_weight` (`float|null`): Sum of weights of VirusTotal scanning engines evaluated.
+  * `explanation` (`string|null`): Detailed calculation formula breakdown.
+  * `contributions` (`array`): Individual engine scanning scores and assigned weights.

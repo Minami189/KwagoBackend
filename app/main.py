@@ -9,6 +9,8 @@ from app.schemas import (
     QuotaResponse,
     SmsScanRequest,
     SmsScanResponse,
+    CnnAnalysisResult,
+    UrlAnalysisResult,
 )
 
 sms_classifier = None
@@ -43,6 +45,18 @@ async def root():
         "docs_url": "/docs",
         "redoc_url": "/redoc"
     }
+
+
+@app.get("/health", status_code=status.HTTP_200_OK)
+async def health_check():
+    """
+    Simple health check endpoint to verify that the service is running and healthy.
+    """
+    return {
+        "status": "healthy",
+        "classifier_loaded": sms_classifier is not None
+    }
+
 
 
 @app.post("/scan", response_model=ScanVerdictResponse, status_code=status.HTTP_200_OK)
@@ -173,7 +187,8 @@ async def check_quota():
 @app.post("/scan-sms", response_model=SmsScanResponse, status_code=status.HTTP_200_OK)
 async def scan_sms_message(request: SmsScanRequest):
     """
-    Scan a full SMS message using the trained CNN-BiGRU model and return a threat/spam verdict.
+    Scan an SMS message and return both CNN-BiGRU model scoring and VirusTotal URL scoring.
+    The Android client will use these scores for client-side ensemble decision making.
     """
     message_to_scan = request.message.strip()
     if not message_to_scan:
@@ -189,12 +204,35 @@ async def scan_sms_message(request: SmsScanRequest):
         )
 
     try:
-        probability = sms_classifier.predict(message_to_scan)
-        verdict = "spam" if probability >= 0.5 else "benign"
+        # 1. CNN-BiGRU Deep Learning Model Scoring
+        cnn_probability = sms_classifier.predict(message_to_scan)
+        cnn_verdict = "spam" if cnn_probability >= 0.5 else "benign"
+        cnn_res = CnnAnalysisResult(
+            score=cnn_probability,
+            verdict=cnn_verdict
+        )
+
+        # 2. VirusTotal URL Threat Scoring (if has_url is True and a URL is provided)
+        if request.has_url and request.extracted_url:
+            primary_url = request.extracted_url.strip()
+            url_res_dict = await scanner.analyze_sms_url(primary_url)
+            url_res = UrlAnalysisResult(**url_res_dict)
+        else:
+            url_res = UrlAnalysisResult(
+                has_url=False,
+                extracted_url=None,
+                score=None,
+                verdict=None,
+                total_weight=None,
+                explanation="No URL requested for scanning or no URL provided.",
+                contributions=[]
+            )
+
+
         return SmsScanResponse(
             message=message_to_scan,
-            verdict=verdict,
-            probability=probability,
+            cnn_analysis=cnn_res,
+            url_analysis=url_res,
         )
     except Exception as e:
         raise HTTPException(

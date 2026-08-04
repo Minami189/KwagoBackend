@@ -56,6 +56,7 @@ def compute_weighted_verdict(
     total_weighted_score = 0.0
     total_weight = 0.0
     contribution_lines: List[str] = []
+    has_trusted_malicious = False
 
     for engine_name, engine_data in analysis_results.items():
         category = str(engine_data.get("category", "undetected")).lower()
@@ -63,6 +64,10 @@ def compute_weighted_verdict(
         weight = weights.get(engine_name, DEFAULT_SOURCE_WEIGHT)
         total_weighted_score += score * weight
         total_weight += weight
+
+        if category == "malicious" and weight >= 0.5:
+            has_trusted_malicious = True
+
         contribution_lines.append(
             f"{engine_name}: category={category}, score={score}, weight={weight}"
         )
@@ -72,6 +77,12 @@ def compute_weighted_verdict(
 
     normalized_score = total_weighted_score / total_weight
 
+    # Single Trusted Engine Boost:
+    # If at least 1 reputable engine (weight >= 0.5) flags the URL as malicious,
+    # enforce a score floor of 0.40 so the final verdict is at least 'suspicious'.
+    if has_trusted_malicious:
+        normalized_score = max(normalized_score, 0.40)
+
     if normalized_score >= 0.65:
         verdict = "malicious"
     elif normalized_score >= 0.35:
@@ -80,6 +91,7 @@ def compute_weighted_verdict(
         verdict = "benign"
 
     return verdict, normalized_score, total_weight, contribution_lines
+
 
 
 def format_verdict_explanation(
@@ -337,4 +349,104 @@ class SMSClassifier:
         raw_outputs = self.session.run(None, {self.input_name: input_data})
         prob = float(raw_outputs[0][0][0])
         return prob
+
+
+def extract_urls(text: str) -> List[str]:
+    """
+    Extracts HTTP, HTTPS, or WWW URLs from text.
+    Strips trailing punctuation such as periods, commas, or parentheses.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return []
+    pattern = r'(?:https?://|www\.)[^\s]+'
+    raw_urls = re.findall(pattern, text)
+    cleaned_urls = []
+    for u in raw_urls:
+        u = u.rstrip(".,;!?)>]\'")
+        if u.startswith("www."):
+            u = "http://" + u
+        if u and u not in cleaned_urls:
+            cleaned_urls.append(u)
+    return cleaned_urls
+
+
+async def analyze_sms_url(url: str) -> Dict[str, Any]:
+    """
+    Performs VirusTotal weighted threat scoring on a URL extracted from an SMS.
+    Returns a dictionary matching the UrlAnalysisResult schema structure.
+    Catches exceptions gracefully to prevent API failure if VT lookup fails.
+    """
+    try:
+        analysis_results = None
+
+        # 1. Compute URL ID and check for existing report
+        url_id = get_url_id(url)
+        report_response = await get_url_report(url_id)
+
+        if report_response.get("status_code") == 200:
+            analysis_results = extract_analysis_results(report_response.get("json", {}))
+
+        # 2. Fallback to submitting new scan if no cached report was found
+        if not analysis_results:
+            scan_response = await scan_url(url)
+            if "error" not in scan_response:
+                scan_id = scan_response.get("data", {}).get("id")
+                if scan_id:
+                    analysis_response = await get_scan_results(scan_id)
+                    if "error" not in analysis_response:
+                        analysis_results = extract_analysis_results(analysis_response)
+
+        if not analysis_results:
+            return {
+                "has_url": True,
+                "extracted_url": url,
+                "score": None,
+                "verdict": None,
+                "total_weight": None,
+                "explanation": "VirusTotal scan returned no analysis engine results.",
+                "contributions": [],
+            }
+
+        # 3. Calculate weighted verdict
+        source_weights = load_source_weights()
+        verdict, normalized_score, total_weight, contributions = compute_weighted_verdict(
+            analysis_results, source_weights
+        )
+
+        total_weighted_score = sum(
+            normalize_category(str(engine_data.get("category", "undetected")).lower())
+            * source_weights.get(engine_name, DEFAULT_SOURCE_WEIGHT)
+            for engine_name, engine_data in analysis_results.items()
+        )
+
+        explanation = format_verdict_explanation(
+            verdict,
+            normalized_score,
+            total_weighted_score,
+            total_weight,
+            contributions,
+        )
+
+        return {
+            "has_url": True,
+            "extracted_url": url,
+            "score": normalized_score,
+            "verdict": verdict,
+            "total_weight": total_weight,
+            "explanation": explanation,
+            "contributions": contributions,
+        }
+
+    except Exception as e:
+        print(f"Error analyzing SMS URL ({url}): {e}")
+        return {
+            "has_url": True,
+            "extracted_url": url,
+            "score": None,
+            "verdict": None,
+            "total_weight": None,
+            "explanation": f"Unable to analyze URL via VirusTotal: {str(e)}",
+            "contributions": [],
+        }
+
 
