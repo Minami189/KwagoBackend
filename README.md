@@ -21,15 +21,40 @@ Minami189/KwagoBackend
 
 ## Setup
 
-1. **Install dependencies:**
+1. **Create a Virtual Environment (Recommended):**
+   ```bash
+   python -m venv .venv
+   ```
+
+2. **Activate the Virtual Environment:**
+   * **Windows (PowerShell):**
+     ```powershell
+     .venv\Scripts\Activate.ps1
+     ```
+   * **Windows (Command Prompt):**
+     ```cmd
+     .venv\Scripts\activate.bat
+     ```
+   * **macOS / Linux:**
+     ```bash
+     source .venv/bin/activate
+     ```
+
+3. **Install Dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Configure Environment:**
+4. **Configure Environment:**
    Create a `.env` file in the root directory:
    ```env
    VIRUS_TOTAL_API_KEY=your_virustotal_api_key
+   ```
+
+5. **Exiting the Virtual Environment:**
+   To deactivate the environment when you are done, run:
+   ```bash
+   deactivate
    ```
 
 ## Usage
