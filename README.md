@@ -72,6 +72,29 @@ The API will be available at `http://localhost:8000`. You can test the endpoints
 * **Swagger UI:** `http://localhost:8000/docs`
 * **ReDoc:** `http://localhost:8000/redoc`
 
+### Exposing the Backend (For Mobile Devices & External Access)
+
+#### Option 1: Expose to Local Wi-Fi Network (Same Wi-Fi)
+To allow physical Android devices on the same Wi-Fi network to access the server:
+1. Start Uvicorn listening on all network interfaces:
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+2. Find your computer's IPv4 address (`ipconfig` on Windows or `ifconfig` on macOS/Linux).
+3. Set your Android app's `API_URL` to `http://<YOUR_IPV4_ADDRESS>:8000/`.
+
+#### Option 2: Expose to Public Internet (via Tunnels)
+To get a public HTTPS URL accessible from anywhere:
+* **Using ngrok:**
+  ```bash
+  ngrok http 8000
+  ```
+* **Using localtunnel:**
+  ```bash
+  npx localtunnel --port 8000
+  ```
+Set your Android app's `API_URL` to the generated HTTPS forwarding URL.
+
 ## API Reference
 
 ### Health Check

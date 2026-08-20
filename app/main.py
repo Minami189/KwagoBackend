@@ -1,6 +1,9 @@
+import os
 from typing import Any, Dict, List
 import uvicorn
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app import scanner
 from app.schemas import (
@@ -20,6 +23,31 @@ app = FastAPI(
     description="FastAPI backend for analyzing URLs using the VirusTotal API with a custom weighted final verdict algorithm.",
     version="1.0.0",
 )
+
+# Enable CORS for cross-origin requests from web/mobile frontends
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+security = HTTPBearer()
+
+def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    expected_key = os.getenv("KWAGO_API_KEY")
+    if not expected_key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="KWAGO_API_KEY environment variable is not configured on the server."
+        )
+    if credentials.credentials != expected_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or unauthorized API key."
+        )
+
 
 
 @app.on_event("startup")
@@ -59,7 +87,7 @@ async def health_check():
 
 
 
-@app.post("/scan", response_model=ScanVerdictResponse, status_code=status.HTTP_200_OK)
+@app.post("/scan", response_model=ScanVerdictResponse, status_code=status.HTTP_200_OK, dependencies=[Depends(verify_api_key)])
 async def scan_and_calculate_verdict(request: ScanRequest):
     """
     Submit a URL for VirusTotal scanning, fetch the engine analysis results,
@@ -161,7 +189,7 @@ async def scan_and_calculate_verdict(request: ScanRequest):
         )
 
 
-@app.get("/quota", response_model=QuotaResponse, status_code=status.HTTP_200_OK)
+@app.get("/quota", response_model=QuotaResponse, status_code=status.HTTP_200_OK, dependencies=[Depends(verify_api_key)])
 async def check_quota():
     """
     Retrieve current VirusTotal API usage and quotas.
@@ -184,7 +212,7 @@ async def check_quota():
         )
 
 
-@app.post("/scan-sms", response_model=SmsScanResponse, status_code=status.HTTP_200_OK)
+@app.post("/scan-sms", response_model=SmsScanResponse, status_code=status.HTTP_200_OK, dependencies=[Depends(verify_api_key)])
 async def scan_sms_message(request: SmsScanRequest):
     """
     Scan an SMS message and return both CNN-BiGRU model scoring and VirusTotal URL scoring.
