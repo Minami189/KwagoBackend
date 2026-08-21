@@ -5,6 +5,7 @@ import csv
 import os
 import pickle
 import re
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -12,8 +13,31 @@ import aiohttp
 import numpy as np
 import onnxruntime as ort
 from dotenv import load_dotenv
+from supabase import create_client, Client
+from cachetools import TTLCache
 
 load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+if SUPABASE_URL and SUPABASE_URL.endswith("/rest/v1/"):
+    SUPABASE_URL = SUPABASE_URL[:-9]
+
+SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY")
+
+supabase: Client = None
+
+if SUPABASE_URL and SUPABASE_SECRET_KEY:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
+        print("Supabase client initialized successfully!")
+    except Exception as e:
+        print(f"Warning: Supabase client initialization failed: {e}")
+
+
+
+# In-memory TTL cache for URL scan results (1000 items capacity, 1 hour lifespan)
+memory_cache = TTLCache(maxsize=1000, ttl=3600)
+
 
 VIRUS_TOTAL_API_KEY = os.getenv("VIRUS_TOTAL_API_KEY")
 WEIGHT_FILE = Path(__file__).parent / "source_weights.csv"
@@ -448,5 +472,157 @@ async def analyze_sms_url(url: str) -> Dict[str, Any]:
             "explanation": f"Unable to analyze URL via VirusTotal: {str(e)}",
             "contributions": [],
         }
+
+
+async def init_db():
+    """
+    Verify Supabase connection on startup.
+    """
+    if supabase:
+        try:
+            # Query the system cache anchor to verify connection
+            supabase.table("sms_message").select("sms_id").eq("sms_id", "CACHE_SMS").execute()
+            print("Supabase HTTP connection: Verified successfully!")
+        except Exception as e:
+            print(f"Warning: Supabase HTTP connection verification failed: {e}")
+    else:
+        print("Warning: Supabase client is not initialized.")
+
+
+async def close_db():
+    """
+    No active database connection pool to close (using HTTP client).
+    """
+    pass
+
+
+async def lookup_cached_url(url: str) -> dict | None:
+    """
+    Check the in-memory cache and then the Supabase database for a fresh cached scan of the URL.
+    Returns the scan results dict if a fresh match (< 7 days old) is found, otherwise None.
+    """
+    # 1. Check in-memory cache
+    if url in memory_cache:
+        print(f"Memory cache hit for URL: {url}")
+        return memory_cache[url]
+
+    # 2. Check Supabase database cache (under CACHE_SMS)
+    if not supabase:
+        return None
+
+    try:
+        # Retrieve scan result with its created_at timestamp
+        response = supabase.table("url_analysis") \
+            .select("is_malicious, scan_result, created_at") \
+            .eq("extracted_url", url) \
+            .eq("sms_id", "CACHE_SMS") \
+            .execute()
+            
+        if response.data:
+            record = response.data[0]
+            created_at_str = record.get("created_at")
+            if created_at_str:
+                from datetime import datetime, timezone, timedelta
+                created_time = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                if datetime.now(timezone.utc) - created_time < timedelta(days=7):
+                    scan_data = json.loads(record["scan_result"])
+                    # Store in memory cache
+                    memory_cache[url] = scan_data
+                    print(f"Database cache hit for URL: {url}")
+                    return scan_data
+
+    except Exception as e:
+        print(f"Database cache lookup error for {url}: {e}")
+    return None
+
+
+async def save_url_scan_to_db(url: str, sms_id: str, is_malicious: int, scan_result: dict):
+    """
+    Insert a scan result into public.url_analysis associated with the given sms_id.
+    """
+    if not supabase:
+        return
+    try:
+        import uuid
+        url_id = str(uuid.uuid4())
+        scan_result_str = json.dumps(scan_result)
+        
+        supabase.table("url_analysis").insert({
+            "url_id": url_id,
+            "sms_id": sms_id,
+            "extracted_url": url,
+            "is_malicious": is_malicious,
+            "scan_result": scan_result_str
+        }).execute()
+    except Exception as e:
+        print(f"Failed to save URL scan to db for sms_id {sms_id}: {e}")
+
+
+async def save_sms_message_to_db(sender_number: str, message_content: str, is_processed: int) -> str | None:
+    """
+    Insert a new user SMS message into public.sms_message and return the auto-generated sms_id.
+    """
+    if not supabase:
+        return None
+    try:
+        response = supabase.table("sms_message").insert({
+            "sender_number": sender_number or "UNKNOWN",
+            "message_content": message_content,
+            "is_processed": is_processed
+        }).execute()
+        if response.data:
+            return str(response.data[0]["sms_id"])
+    except Exception as e:
+        print(f"Failed to save SMS message to database: {e}")
+    return None
+
+
+async def save_analysis_result_to_db(sms_id: str, ml_prediction: str, ml_confidence: float, dl_prediction: str, dl_confidence: float):
+    """
+    Insert the CNN prediction and confidence levels into public.analysis_result linked to the given sms_id.
+    """
+    if not supabase:
+        return
+    try:
+        import uuid
+        analysis_id = str(uuid.uuid4())
+        supabase.table("analysis_result").insert({
+            "analysis_id": analysis_id,
+            "sms_id": sms_id,
+            "ml_prediction": ml_prediction,
+            "ml_confidence": ml_confidence,
+            "dl_prediction": dl_prediction,
+            "dl_confidence": dl_confidence
+        }).execute()
+    except Exception as e:
+        print(f"Failed to save analysis result for sms_id {sms_id}: {e}")
+
+
+async def prune_expired_records_db():
+    """
+    Worker task to delete SMS messages and linked logs older than 7 days (168 hours).
+    """
+    if not supabase:
+        return
+    try:
+        # Attempt to run SQL pruning via RPC function if defined
+        supabase.rpc("prune_expired_records").execute()
+        print("Database cache pruning RPC: Success.")
+    except Exception as e:
+        print(f"Database pruning RPC failed: {e}. Falling back to client-side pruning...")
+        try:
+            from datetime import datetime, timezone, timedelta
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+            supabase.table("sms_message") \
+                .delete() \
+                .lt("received_timestamp", cutoff) \
+                .neq("sms_id", "CACHE_SMS") \
+                .execute()
+            print("Database cache fallback pruning: Success.")
+        except Exception as ex:
+            print(f"Fallback database pruning failed: {ex}")
+
+
+
 
 

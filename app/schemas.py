@@ -40,6 +40,18 @@ class SmsScanRequest(BaseModel):
         description="The URL extracted from the message by the client, if any.",
         json_schema_extra={"example": None}
     )
+    allow_save: bool = Field(
+        False,
+        description="Whether the user allowed auto-saving of the SMS content.",
+        json_schema_extra={"example": False}
+    )
+    sender: Optional[str] = Field(
+        None,
+        description="The sender's phone number.",
+        json_schema_extra={"example": "+1234567890"}
+    )
+
+
 
 
 

@@ -51,13 +51,30 @@ def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)
 
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     global sms_classifier
     try:
         sms_classifier = scanner.SMSClassifier()
         print("SMS Classifier successfully loaded!")
     except Exception as e:
         print(f"Warning: SMS Classifier could not be loaded: {e}")
+    
+    # Open database connection pool
+    await scanner.init_db()
+    
+    # Run automatic 7-day data pruning on startup
+    try:
+        await scanner.prune_expired_records_db()
+    except Exception as e:
+        print(f"Warning: Database pruning on startup failed: {e}")
+
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    # Close database connection pool
+    await scanner.close_db()
+
 
 
 # --- Routes ---
@@ -240,10 +257,50 @@ async def scan_sms_message(request: SmsScanRequest):
             verdict=cnn_verdict
         )
 
-        # 2. VirusTotal URL Threat Scoring (if has_url is True and a URL is provided)
+        sms_id = None
+        if request.allow_save:
+            # Save SMS to public.sms_message and retrieve key
+            sms_id = await scanner.save_sms_message_to_db(request.sender, message_to_scan, 0)
+            if sms_id:
+                # Save CNN model predictions to public.analysis_result
+                await scanner.save_analysis_result_to_db(
+                    sms_id=sms_id,
+                    ml_prediction=None,
+                    ml_confidence=None,
+                    dl_prediction=cnn_verdict,
+                    dl_confidence=float(cnn_probability)
+                )
+
+        # 2. VirusTotal URL Threat Scoring with dual-layer caching (in-memory + database)
         if request.has_url and request.extracted_url:
             primary_url = request.extracted_url.strip()
-            url_res_dict = await scanner.analyze_sms_url(primary_url)
+            
+            # Check caching layer (in-memory -> database)
+            cached_scan = await scanner.lookup_cached_url(primary_url)
+            if cached_scan:
+                url_res_dict = cached_scan
+            else:
+                # Cache miss: Run live query
+                url_res_dict = await scanner.analyze_sms_url(primary_url)
+                
+                # 1. Store in database global cache (linked to CACHE_SMS)
+                await scanner.save_url_scan_to_db(
+                    url=primary_url,
+                    sms_id="CACHE_SMS",
+                    is_malicious=1 if url_res_dict.get("verdict") == "malicious" else 0,
+                    scan_result=url_res_dict
+                )
+                
+                # 2. Store in database linked to the actual user sms_id (only on cache miss!)
+                if request.allow_save and sms_id:
+                    await scanner.save_url_scan_to_db(
+                        url=primary_url,
+                        sms_id=sms_id,
+                        is_malicious=1 if url_res_dict.get("verdict") == "malicious" else 0,
+                        scan_result=url_res_dict
+                    )
+
+            
             url_res = UrlAnalysisResult(**url_res_dict)
         else:
             url_res = UrlAnalysisResult(
@@ -255,7 +312,6 @@ async def scan_sms_message(request: SmsScanRequest):
                 explanation="No URL requested for scanning or no URL provided.",
                 contributions=[]
             )
-
 
         return SmsScanResponse(
             message=message_to_scan,

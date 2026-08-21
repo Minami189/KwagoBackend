@@ -5,3 +5,8 @@ numpy
 pydantic
 python-dotenv
 aiohttp
+supabase==2.5.1
+cachetools==5.3.3
+pg8000
+
+

@@ -49,6 +49,8 @@ Minami189/KwagoBackend
    Create a `.env` file in the root directory:
    ```env
    VIRUS_TOTAL_API_KEY=your_virustotal_api_key
+   KWAGO_API_KEY=your_custom_auth_api_key_for_this_backend
+   DATABASE_URL=postgresql://kwago_api_role:your_secure_password@db.your-project-id.supabase.co:5432/postgres
    ```
 
 5. **Exiting the Virtual Environment:**
@@ -164,7 +166,9 @@ Scan an SMS message and receive both the **CNN-BiGRU deep learning model score**
   {
     "message": "CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com",
     "has_url": true,
-    "extracted_url": "http://fake-claim.com"
+    "extracted_url": "http://fake-claim.com",
+    "allow_save": true,
+    "sender": "+1234567890"
   }
   ```
 
@@ -172,8 +176,11 @@ Scan an SMS message and receive both the **CNN-BiGRU deep learning model score**
   ```bash
   curl -X POST "http://localhost:8000/scan-sms" \
        -H "Content-Type: application/json" \
-       -d "{\"message\": \"CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com\", \"has_url\": true, \"extracted_url\": \"http://fake-claim.com\"}"
+       -H "Authorization: Bearer your_custom_auth_api_key_for_this_backend" \
+       -d "{\"message\": \"CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com\", \"has_url\": true, \"extracted_url\": \"http://fake-claim.com\", \"allow_save\": true, \"sender\": \"+1234567890\"}"
   ```
+
+
 
 
 * **Example Response (SMS with URL):**
