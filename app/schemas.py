@@ -50,6 +50,19 @@ class SmsScanRequest(BaseModel):
         description="The sender's phone number.",
         json_schema_extra={"example": "+1234567890"}
     )
+    ml_prediction: Optional[str] = Field(
+        None,
+        description="The local ML model smishing verdict classification (suspicious/smishing/benign).",
+        json_schema_extra={"example": "smishing"}
+    )
+    ml_confidence: Optional[float] = Field(
+        0.0,
+        description="The local ML model smishing confidence score or probability.",
+        json_schema_extra={"example": 0.90}
+    )
+
+
+
 
 
 

@@ -257,19 +257,30 @@ async def scan_sms_message(request: SmsScanRequest):
             verdict=cnn_verdict
         )
 
+        # Compute combined classification score (50% local ML confidence, 50% CNN DL prediction)
+        ml_confidence_val = request.ml_confidence or 0.0
+        # Normalize if client sent value in percentage scale (e.g. 90.0) rather than probability (0.90)
+        if ml_confidence_val > 1.0:
+            ml_confidence_val = ml_confidence_val / 100.0
+
+        final_combined_score = 0.5 * ml_confidence_val + 0.5 * cnn_probability
+
         sms_id = None
-        if request.allow_save:
+        # Only save SMS logs and classification results if user allowed saving AND combined score reaches 70% (0.70) threshold
+        if request.allow_save and final_combined_score >= 0.70:
             # Save SMS to public.sms_message and retrieve key
             sms_id = await scanner.save_sms_message_to_db(request.sender, message_to_scan, 0)
             if sms_id:
-                # Save CNN model predictions to public.analysis_result
+                # Save CNN and local ML model predictions to public.analysis_result
                 await scanner.save_analysis_result_to_db(
                     sms_id=sms_id,
-                    ml_prediction=None,
-                    ml_confidence=None,
+                    ml_prediction=request.ml_prediction or "unknown",
+                    ml_confidence=float(ml_confidence_val),
                     dl_prediction=cnn_verdict,
                     dl_confidence=float(cnn_probability)
                 )
+
+
 
         # 2. VirusTotal URL Threat Scoring with dual-layer caching (in-memory + database)
         if request.has_url and request.extracted_url:
