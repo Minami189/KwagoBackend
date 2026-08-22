@@ -92,9 +92,10 @@ def compute_weighted_verdict(
         if category == "malicious" and weight >= 0.5:
             has_trusted_malicious = True
 
-        contribution_lines.append(
-            f"{engine_name}: category={category}, score={score}, weight={weight}"
-        )
+        if category in ["malicious", "suspicious"]:
+            contribution_lines.append(
+                f"{engine_name} ({category})"
+            )
 
     if total_weight == 0:
         raise ValueError("No weighted engines were available to compute a verdict.")
@@ -125,18 +126,15 @@ def format_verdict_explanation(
     total_weight: float,
     contributions: List[str],
 ) -> str:
-    expression = (
-        f"weighted_score = {total_weighted_score:.4f} / {total_weight:.4f} = "
-        f"{normalized_score:.4f}"
-    )
-    explanation_lines = [
-        "Final verdict explanation:",
-        expression,
-        f"Final verdict threshold result: {verdict}",
-        "Engine contributions:",
-    ]
-    explanation_lines.extend(contributions)
-    return "\n".join(explanation_lines)
+    if verdict == "benign":
+        return "This URL is clean. No security engines flagged it as malicious."
+
+    flagged_engines = ", ".join(contributions)
+    if flagged_engines:
+        return f"This URL is flagged as {verdict} (threat score: {normalized_score:.2f}). Detected by: {flagged_engines}."
+    else:
+        return f"This URL is flagged as {verdict} (threat score: {normalized_score:.2f})."
+
 
 
 # Async VT scanners
