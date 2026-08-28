@@ -509,10 +509,10 @@ async def lookup_cached_url(url: str) -> dict | None:
         return None
 
     try:
-        # Retrieve scan result with its created_at timestamp
+        # Retrieve scan result joined with the url table
         response = supabase.table("url_analysis") \
-            .select("is_malicious, scan_result, created_at") \
-            .eq("extracted_url", url) \
+            .select("is_malicious, scan_result, created_at, url!inner(full_url)") \
+            .eq("url.full_url", url) \
             .eq("sms_id", "CACHE_SMS") \
             .execute()
             
@@ -537,23 +537,65 @@ async def lookup_cached_url(url: str) -> dict | None:
 async def save_url_scan_to_db(url: str, sms_id: str, is_malicious: int, scan_result: dict):
     """
     Insert a scan result into public.url_analysis associated with the given sms_id.
+    Saves the unique URL components inside public.url table if it doesn't exist yet.
     """
     if not supabase:
         return
     try:
         import uuid
-        url_id = str(uuid.uuid4())
+        from urllib.parse import urlparse
+        
+        # 1. Check if the URL already exists in public.url
+        res = supabase.table("url").select("url_id").eq("full_url", url).execute()
+        url_db_id = None
+        
+        if res.data:
+            url_db_id = res.data[0]["url_id"]
+        else:
+            # Insert new URL entry
+            url_db_id = str(uuid.uuid4())
+            parsed = urlparse(url)
+            scheme = parsed.scheme
+            host = parsed.hostname or parsed.netloc or ""
+            path = parsed.path
+            if path == "/":
+                path = ""
+            query = parsed.query
+            
+            # Execute insert. In case of concurrent inserts, we handle unique constraint violation gracefully.
+            try:
+                supabase.table("url").insert({
+                    "url_id": url_db_id,
+                    "full_url": url,
+                    "scheme": scheme,
+                    "host": host,
+                    "path": path,
+                    "query": query
+                }).execute()
+            except Exception as inner_e:
+                print(f"Concurrent URL insert detected, re-fetching URL ID: {inner_e}")
+                res_retry = supabase.table("url").select("url_id").eq("full_url", url).execute()
+                if res_retry.data:
+                    url_db_id = res_retry.data[0]["url_id"]
+        
+        if not url_db_id:
+            raise ValueError("Unable to determine or insert url_id.")
+            
+        # 2. Insert the analysis record linked to this URL ID
+        analysis_id = str(uuid.uuid4())
         scan_result_str = json.dumps(scan_result)
         
         supabase.table("url_analysis").insert({
-            "url_id": url_id,
+            "analysis_id": analysis_id,
             "sms_id": sms_id,
-            "extracted_url": url,
+            "url_id": url_db_id,
             "is_malicious": is_malicious,
             "scan_result": scan_result_str
         }).execute()
     except Exception as e:
         print(f"Failed to save URL scan to db for sms_id {sms_id}: {e}")
+
+
 
 
 async def save_sms_message_to_db(sender_number: str, message_content: str, is_processed: int) -> str | None:
