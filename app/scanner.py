@@ -81,6 +81,8 @@ def compute_weighted_verdict(
     total_weight = 0.0
     contribution_lines: List[str] = []
     has_trusted_malicious = False
+    malicious_count = 0
+    suspicious_count = 0
 
     for engine_name, engine_data in analysis_results.items():
         category = str(engine_data.get("category", "undetected")).lower()
@@ -89,8 +91,12 @@ def compute_weighted_verdict(
         total_weighted_score += score * weight
         total_weight += weight
 
-        if category == "malicious" and weight >= 0.5:
-            has_trusted_malicious = True
+        if category == "malicious":
+            malicious_count += 1
+            if weight >= 0.5:
+                has_trusted_malicious = True
+        elif category == "suspicious":
+            suspicious_count += 1
 
         if category in ["malicious", "suspicious"]:
             contribution_lines.append(
@@ -102,20 +108,24 @@ def compute_weighted_verdict(
 
     normalized_score = total_weighted_score / total_weight
 
-    # Single Trusted Engine Boost:
-    # If at least 1 reputable engine (weight >= 0.5) flags the URL as malicious,
-    # enforce a score floor of 0.40 so the final verdict is at least 'suspicious'.
-    if has_trusted_malicious:
-        normalized_score = max(normalized_score, 0.40)
+    # Harsher Security Boost Rules:
+    # 1. Trusted Vendor Boost: Reputable vendor (weight >= 0.5) flags URL as malicious -> elevate score to malicious (>= 0.65)
+    if has_trusted_malicious or malicious_count >= 2:
+        normalized_score = max(normalized_score, 0.65)
+    # 2. Early Warning Boost: Single vendor flags as malicious or suspicious -> elevate to at least suspicious (>= 0.25)
+    elif malicious_count >= 1 or suspicious_count >= 1:
+        normalized_score = max(normalized_score, 0.25)
 
-    if normalized_score >= 0.65:
+    # Stricter Verdict Thresholds
+    if normalized_score >= 0.45:
         verdict = "malicious"
-    elif normalized_score >= 0.35:
+    elif normalized_score >= 0.20:
         verdict = "suspicious"
     else:
         verdict = "benign"
 
     return verdict, normalized_score, total_weight, contribution_lines
+
 
 
 

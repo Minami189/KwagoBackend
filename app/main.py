@@ -104,11 +104,12 @@ async def health_check():
 
 
 
-@app.post("/scan", response_model=ScanVerdictResponse, status_code=status.HTTP_200_OK, dependencies=[Depends(verify_api_key)])
+@app.post("/scan", response_model=UrlAnalysisResult, status_code=status.HTTP_200_OK, dependencies=[Depends(verify_api_key)])
+@app.post("/scan-url", response_model=UrlAnalysisResult, status_code=status.HTTP_200_OK, dependencies=[Depends(verify_api_key)])
 async def scan_and_calculate_verdict(request: ScanRequest):
     """
-    Submit a URL for VirusTotal scanning, fetch the engine analysis results,
-    and calculate a customized weighted final threat verdict.
+    Submit a URL link for threat scanning and calculate a customized weighted threat verdict.
+    Utilizes dual-layer caching (in-memory -> Supabase database) to prevent redundant VirusTotal API calls.
     """
     url_to_scan = request.url.strip()
     if not url_to_scan:
@@ -118,91 +119,32 @@ async def scan_and_calculate_verdict(request: ScanRequest):
         )
 
     try:
-        analysis_results = None
+        # 1. Check dual-layer caching layer (in-memory -> Supabase database)
+        cached_scan = await scanner.lookup_cached_url(url_to_scan)
+        if cached_scan:
+            return UrlAnalysisResult(**cached_scan)
 
-        # 1. Compute URL ID and check for existing report
-        url_id = scanner.get_url_id(url_to_scan)
-        report_response = await scanner.get_url_report(url_id)
+        # 2. Cache miss: Run live VirusTotal query
+        url_res_dict = await scanner.analyze_sms_url(url_to_scan)
 
-        if report_response["status_code"] == 200:
-            # Report exists, extract results
-            analysis_results = scanner.extract_analysis_results(report_response["json"])
-
-        # 2. Fallback to submitting new scan if no cached report was found
-        if not analysis_results:
-            scan_response = await scanner.scan_url(url_to_scan)
-            
-            # Handle API error response structures
-            if "error" in scan_response:
-                error_details = scan_response["error"].get("message", "Unknown error from VirusTotal.")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"VirusTotal URL scan request failed: {error_details}"
-                )
-
-            scan_id = scan_response.get("data", {}).get("id")
-            if not scan_id:
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail="Unable to obtain a scan ID from the VirusTotal submission response."
-                )
-
-            # Retrieve scan results (polls until completed)
-            analysis_response = await scanner.get_scan_results(scan_id)
-            
-            if "error" in analysis_response:
-                error_details = analysis_response["error"].get("message", "Unknown error from VirusTotal.")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"VirusTotal analysis retrieval failed: {error_details}"
-                )
-
-            analysis_results = scanner.extract_analysis_results(analysis_response)
-
-        if not analysis_results:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No analysis engine results found in the VirusTotal response."
-            )
-
-        # 3. Calculate weighted verdict
-        source_weights = scanner.load_source_weights()
-        verdict, normalized_score, total_weight, contributions = scanner.compute_weighted_verdict(
-            analysis_results, source_weights
-        )
-
-        # Sum weighted scores to format explanation
-        total_weighted_score = sum(
-            scanner.normalize_category(str(engine_data.get("category", "undetected")).lower())
-            * source_weights.get(engine_name, scanner.DEFAULT_SOURCE_WEIGHT)
-            for engine_name, engine_data in analysis_results.items()
-        )
-
-        explanation = scanner.format_verdict_explanation(
-            verdict,
-            normalized_score,
-            total_weighted_score,
-            total_weight,
-            contributions,
-        )
-
-        return ScanVerdictResponse(
+        # 3. Store in database global cache (linked to CACHE_SMS)
+        await scanner.save_url_scan_to_db(
             url=url_to_scan,
-            verdict=verdict,
-            normalized_score=normalized_score,
-            total_weight=total_weight,
-            explanation=explanation,
-            contributions=contributions,
-            raw_results=analysis_results,
+            sms_id="CACHE_SMS",
+            is_malicious=1 if url_res_dict.get("verdict") == "malicious" else 0,
+            scan_result=url_res_dict
         )
+
+        return UrlAnalysisResult(**url_res_dict)
 
     except HTTPException:
         # Re-raise known HTTP exceptions directly
         raise
     except Exception as e:
+        # Wrap unexpected failures in a 500 internal server error
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while processing the scan: {str(e)}"
+            detail=f"An unexpected internal error occurred while processing the URL scan: {str(e)}"
         )
 
 
