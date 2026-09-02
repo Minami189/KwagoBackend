@@ -1,7 +1,7 @@
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import uvicorn
-from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi import FastAPI, HTTPException, status, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -14,6 +14,7 @@ from app.schemas import (
     SmsScanResponse,
     CnnAnalysisResult,
     UrlAnalysisResult,
+    UrlReputationSyncResponse,
 )
 
 sms_classifier = None
@@ -168,6 +169,22 @@ async def check_quota():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to check API quota: {str(e)}"
+        )
+
+
+@app.get("/url-reputations", response_model=UrlReputationSyncResponse, status_code=status.HTTP_200_OK, dependencies=[Depends(verify_api_key)])
+async def get_url_reputations(since_timestamp: Optional[int] = Query(None, description="Unix timestamp in milliseconds to filter records created/updated after this time.")):
+    """
+    Retrieve cached URL threat reputation records for client/VPN synchronization.
+    Supports incremental sync via the optional since_timestamp query parameter (in milliseconds).
+    """
+    try:
+        sync_data = await scanner.get_url_reputations(since_timestamp)
+        return UrlReputationSyncResponse(**sync_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve URL reputations: {str(e)}"
         )
 
 

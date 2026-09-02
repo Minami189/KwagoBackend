@@ -673,6 +673,68 @@ async def prune_expired_records_db():
             print(f"Fallback database pruning failed: {ex}")
 
 
+async def get_url_reputations(since_timestamp_ms: Optional[int] = None) -> dict:
+    """
+    Fetch all cached URL threat reputations from Supabase (under CACHE_SMS anchor),
+    optionally filtering entries created after since_timestamp_ms (milliseconds).
+    """
+    from datetime import datetime, timezone
+    
+    if not supabase:
+        return {
+            "total_records": 0,
+            "last_synced_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "urls": []
+        }
+
+    try:
+        query = supabase.table("url_analysis") \
+            .select("scan_result, created_at, url!inner(full_url, host)") \
+            .eq("sms_id", "CACHE_SMS")
+
+        if since_timestamp_ms is not None and since_timestamp_ms > 0:
+            dt = datetime.fromtimestamp(since_timestamp_ms / 1000.0, tz=timezone.utc)
+            iso_str = dt.isoformat()
+            query = query.gte("created_at", iso_str)
+
+        response = query.execute()
+        urls_list = []
+        if response.data:
+            for row in response.data:
+                scan_data = json.loads(row.get("scan_result") or "{}")
+                full_url = scan_data.get("extracted_url") or row.get("url", {}).get("full_url", "")
+                host = row.get("url", {}).get("host", "")
+                if not host and full_url:
+                    from urllib.parse import urlparse
+                    parsed = urlparse(full_url)
+                    host = parsed.hostname or parsed.netloc or ""
+
+                urls_list.append({
+                    "extracted_url": full_url,
+                    "normalized_host": host,
+                    "verdict": scan_data.get("verdict", "benign"),
+                    "score": float(scan_data.get("score") or 0.0),
+                    "total_weight": float(scan_data.get("total_weight") or 0.0),
+                    "explanation": scan_data.get("explanation", ""),
+                    "contributions": scan_data.get("contributions", [])
+                })
+
+        last_synced = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return {
+            "total_records": len(urls_list),
+            "last_synced_at": last_synced,
+            "urls": urls_list
+        }
+    except Exception as e:
+        print(f"Failed to fetch url reputations from DB: {e}")
+        return {
+            "total_records": 0,
+            "last_synced_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "urls": []
+        }
+
+
+
 
 
 

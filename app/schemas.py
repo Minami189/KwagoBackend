@@ -83,6 +83,23 @@ class UrlAnalysisResult(BaseModel):
     contributions: Optional[List[str]] = Field(None, description="Individual VirusTotal engine contributions.")
 
 
+class UrlReputationItem(BaseModel):
+    extracted_url: str = Field(..., description="The full extracted URL.")
+    normalized_host: str = Field(..., description="The normalized host or domain of the URL.")
+    verdict: str = Field(..., description="The threat verdict ('malicious', 'suspicious', or 'benign').")
+    score: float = Field(..., description="The threat score (0.0 to 1.0).")
+    total_weight: float = Field(..., description="Total weight of evaluated VirusTotal engines.")
+    explanation: str = Field(..., description="Human-readable breakdown explanation.")
+    contributions: List[str] = Field(..., description="List of flagging security vendors.")
+
+
+class UrlReputationSyncResponse(BaseModel):
+    total_records: int = Field(..., description="Total number of URL reputation records returned in this sync.")
+    last_synced_at: str = Field(..., description="ISO 8601 timestamp of when this sync occurred.")
+    urls: List[UrlReputationItem] = Field(..., description="List of URL reputation items.")
+
+
+
 class SmsScanResponse(BaseModel):
     message: str = Field(..., description="The original SMS message analyzed.")
     cnn_analysis: CnnAnalysisResult = Field(..., description="Scoring results from the CNN-BiGRU deep learning model.")
