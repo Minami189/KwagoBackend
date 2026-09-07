@@ -1,114 +1,126 @@
-# KwagoBackend
+# KwagoBackend URL & SMS Threat Scanner
 
-FastAPI backend for threat scanning and analyzing URLs using the VirusTotal API with a custom weighted final verdict algorithm.
+FastAPI backend for multi-layer SMS smishing classification, deep learning NLP analysis (CNN-BiGRU), and VirusTotal weighted URL threat scanning.
 
-## Folder Structure
+---
+
+## 1. System Architecture & Decision Matrix
+
+KwagoBackend combines three distinct threat detection layers to determine an overall classification score ($S$) and synthesize human-readable executive explanations for mobile users:
+
+1. **Local ML Layer (Random Forest + XGBoost)**: Mobile client pre-scan confidence score.
+2. **Server Deep Learning Layer (CNN-BiGRU ONNX Model)**: NLP analysis extracting linguistic urgency and scam phrasing.
+3. **URL Threat Scanner Layer (VirusTotal API)**: Weighted threat reputation analysis over security vendor engines.
+
+---
+
+### Ensemble Decision Logic Matrix
+
+| Case Scenario | Active Layers & Weights | Ensemble Formula |
+| :--- | :--- | :--- |
+| **Case 1: No Web Link** | 66.7% CNN DL + 33.3% Local ML | $S = \left(\frac{2}{3} \times \text{DL}\right) + \left(\frac{1}{3} \times \text{ML}\right)$ |
+| **Case 2: Web Link Present, but Scan Pending / Unavailable** | 66.7% CNN DL + 33.3% Local ML *(+ Caution Warning Appended)* | $S = \left(\frac{2}{3} \times \text{DL}\right) + \left(\frac{1}{3} \times \text{ML}\right)$ |
+| **Case 3: Web Link Present & Scan Completed** | 50% CNN DL + 25% URL Scan + 25% Local ML | $S = (0.50 \times \text{DL}) + (0.25 \times \text{URL}) + (0.25 \times \text{ML})$ |
+
+---
+
+### Classification Thresholds
+
+| Ensemble Score ($S$) | Overall Verdict | Risk Level | System Behavior |
+| :--- | :--- | :--- | :--- |
+| **$S \ge 0.85$** | **Harmful** | High Risk | Threat warning generated; logged to database if `allow_save = true`. |
+| **$0.70 \le S < 0.85$** | **Suspicious** | Medium Risk | Caution alert shown; logged to database if `allow_save = true`. |
+| **$S < 0.70$** | **Safe** | Low Risk | Allowed normally; bypassed from database logging. |
+
+---
+
+### Explanation Synthesis Rules
+
+* **Clean URL Mitigation**: If text analysis flags risk (ML/DL $\ge 0.70$) but an embedded web link is verified clean (`0.0`), driving $S < 0.70$, the backend outputs:  
+  > *"Although message text exhibits smishing cues, the overall message is verified as Safe because the embedded web link was verified clean."*
+* **Pending URL Caution Warning**: When a web link has not completed scanning, the backend appends:  
+  > *"Exercise caution: this message contains a web link ({url}) that has not been verified by online threat intelligence yet, so its safety cannot be guaranteed."*
+
+---
+
+## 2. Folder Structure
 
 ```text
-Minami189/KwagoBackend
+KwagoBackend/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py            (FastAPI routing & application startup)
-│   ├── schemas.py         (Pydantic request & response models)
-│   ├── scanner.py         (VirusTotal scanning & weighted score computation logic)
-│   └── source_weights.csv (Weights of different VirusTotal engines)
-├── .env                   (Local environment configuration - gitignored)
+│   ├── main.py            (FastAPI application & API routes)
+│   ├── scanner.py         (Ensemble scoring, ONNX model inference, VirusTotal scanner, Supabase logging)
+│   ├── schemas.py         (Pydantic request & response schemas)
+│   └── source_weights.csv (Engine weights for VirusTotal threat scoring)
+├── models/
+│   ├── cnn_bigru_model.onnx (CNN-BiGRU ONNX model file)
+│   └── tokenizer_b.pkl    (Pickle tokenizer object)
+├── .env                   (Local environment variables - gitignored)
 ├── .gitignore
 ├── README.md
 ├── requirements.txt
-└── weighted_verdict_plan.md
+└── walkthrough.md
 ```
 
-## Setup
+---
 
-1. **Create a Virtual Environment (Recommended):**
-   ```bash
-   python -m venv .venv
-   ```
+## 3. Setup & Environment Configuration
 
-2. **Activate the Virtual Environment:**
-   * **Windows (PowerShell):**
-     ```powershell
-     .venv\Scripts\Activate.ps1
-     ```
-   * **Windows (Command Prompt):**
-     ```cmd
-     .venv\Scripts\activate.bat
-     ```
-   * **macOS / Linux:**
-     ```bash
-     source .venv/bin/activate
-     ```
+### 1. Create & Activate Virtual Environment
+```bash
+python -m venv .venv
+```
+* **PowerShell**: `.venv\Scripts\Activate.ps1`
+* **Command Prompt**: `.venv\Scripts\activate.bat`
+* **macOS/Linux**: `source .venv/bin/activate`
 
-3. **Install Dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 2. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
 
-4. **Configure Environment:**
-   Create a `.env` file in the root directory:
-   ```env
-   VIRUS_TOTAL_API_KEY=your_virustotal_api_key
-   KWAGO_API_KEY=your_custom_auth_api_key_for_this_backend
-   DATABASE_URL=postgresql://kwago_api_role:your_secure_password@db.your-project-id.supabase.co:5432/postgres
-   ```
+### 3. Configure `.env`
+Create a `.env` file in the project root:
+```env
+VIRUS_TOTAL_API_KEY=your_virustotal_api_key
+KWAGO_API_KEY=your_custom_auth_api_key_for_this_backend
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_SECRET_KEY=your_supabase_secret_key
+```
 
-5. **Exiting the Virtual Environment:**
-   To deactivate the environment when you are done, run:
-   ```bash
-   deactivate
-   ```
+---
 
-## Usage
+## 4. Running the Server
 
-Start the development server using uvicorn from the root directory:
+Start the application with Uvicorn:
 ```bash
 python -m app.main
 ```
 or:
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-The API will be available at `http://localhost:8000`. You can test the endpoints interactively at:
+Interactive API documentation will be available at:
 * **Swagger UI:** `http://localhost:8000/docs`
 * **ReDoc:** `http://localhost:8000/redoc`
 
-### Exposing the Backend (For Mobile Devices & External Access)
+---
 
-#### Option 1: Expose to Local Wi-Fi Network (Same Wi-Fi)
-To allow physical Android devices on the same Wi-Fi network to access the server:
-1. Start Uvicorn listening on all network interfaces:
-   ```bash
-   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-   ```
-2. Find your computer's IPv4 address (`ipconfig` on Windows or `ifconfig` on macOS/Linux).
-3. Set your Android app's `API_URL` to `http://<YOUR_IPV4_ADDRESS>:8000/`.
+## 5. API Reference
 
-#### Option 2: Expose to Public Internet (via Tunnels)
-To get a public HTTPS URL accessible from anywhere:
-* **Using ngrok:**
-  ```bash
-  ngrok http 8000
-  ```
-* **Using localtunnel:**
-  ```bash
-  npx localtunnel --port 8000
-  ```
-Set your Android app's `API_URL` to the generated HTTPS forwarding URL.
+All protected endpoints require the HTTP Authorization Header:
+`Authorization: Bearer <KWAGO_API_KEY>`
 
-## API Reference
+---
 
-### Health Check
+### A. Health Check (`GET /health`)
 
-Verify that the service is running and checking classifier model loading status.
+Verify service status and classifier model availability.
 
 * **Endpoint:** `GET /health`
-* **Example Request using `curl`:**
-  ```bash
-  curl -X GET "http://localhost:8000/health"
-  ```
-* **Example Response:**
+* **Response Body:**
   ```json
   {
     "status": "healthy",
@@ -116,127 +128,126 @@ Verify that the service is running and checking classifier model loading status.
   }
   ```
 
-### Scan URL
+---
 
-Submit a URL for threat analysis and custom weighted scoring.
+### B. SMS Smishing Scan (`POST /scan-sms`)
 
-* **Endpoint:** `POST /scan`
-* **Content-Type:** `application/json`
-* **Request Body:**
-  ```json
-  {
-    "url": "http://malicious-web-example.com"
-  }
-  ```
-
-* **Example Response:**
-  ```json
-  {
-    "url": "http://malicious-web-example.com",
-    "verdict": "suspicious",
-    "normalized_score": 0.456,
-    "total_weight": 14.85,
-    "explanation": "Final verdict explanation:\nweighted_score = ...",
-    "contributions": [
-      "Microsoft: category=clean, score=0.0, weight=0.95",
-      "Kaspersky: category=malicious, score=1.0, weight=0.9"
-    ],
-    "raw_results": { ... }
-  }
-  ```
-
-### Check Quota
-
-Retrieve the current VirusTotal usage limits and API quotas.
-
-* **Endpoint:** `GET /quota`
-* **Example Request using `curl`:**
-  ```bash
-  curl -X GET "http://localhost:8000/quota"
-  ```
-
-### Scan SMS Message
-
-Scan an SMS message and receive both the **CNN-BiGRU deep learning model score** and the **VirusTotal URL threat score**. The Android client uses both sub-scores to make its final client-side ensemble decision.
+Scans an SMS message text, evaluates local ML confidence, runs server CNN-BiGRU inference, and performs VirusTotal URL lookup if a web link is included.
 
 * **Endpoint:** `POST /scan-sms`
-* **Content-Type:** `application/json`
+* **Headers:** `Authorization: Bearer <KWAGO_API_KEY>`
 * **Request Body:**
   ```json
   {
     "message": "CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com",
     "has_url": true,
     "extracted_url": "http://fake-claim.com",
-    "allow_save": true,
-    "sender": "+1234567890"
+    "allow_save": false,
+    "sender": "+639123456789",
+    "ml_prediction": "smishing",
+    "ml_confidence": 0.85
   }
   ```
 
-* **Example Request using `curl`:**
-  ```bash
-  curl -X POST "http://localhost:8000/scan-sms" \
-       -H "Content-Type: application/json" \
-       -H "Authorization: Bearer your_custom_auth_api_key_for_this_backend" \
-       -d "{\"message\": \"CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com\", \"has_url\": true, \"extracted_url\": \"http://fake-claim.com\", \"allow_save\": true, \"sender\": \"+1234567890\"}"
-  ```
-
-
-
-
-* **Example Response (SMS with URL):**
+* **Response Body (`SmsScanResponse`):**
   ```json
   {
     "message": "CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com",
+    "overall_verdict": "Harmful",
+    "overall_score": 0.9125,
+    "overall_explanation": "Both the local ML and Deep Learning layers confirmed High Risk because the message promotes unsolicited monetary bonuses, deposit rewards, or financial incentives. Furthermore, the embedded web link (http://fake-claim.com) was confirmed as a high-risk malicious phishing site.",
     "cnn_analysis": {
-      "score": 0.6763,
-      "verdict": "spam"
+      "score": 0.95,
+      "verdict": "harmful",
+      "explanation": "Promotes unsolicited monetary bonuses, deposit rewards, or financial incentives."
     },
     "url_analysis": {
       "has_url": true,
       "extracted_url": "http://fake-claim.com",
-      "score": 0.8500,
+      "score": 0.90,
       "verdict": "malicious",
       "total_weight": 14.85,
-      "explanation": "Final verdict explanation:\nweighted_score = 12.6225 / 14.8500 = 0.8500\nFinal verdict threshold result: malicious\nEngine contributions:\n...",
+      "explanation": "This URL is flagged as malicious (threat score: 0.90). Detected by: Fortinet (malicious).",
       "contributions": [
-        "Microsoft: category=clean, score=0.0, weight=0.95",
-        "Kaspersky: category=malicious, score=1.0, weight=0.9"
+        "Fortinet (malicious)"
       ]
     }
   }
   ```
 
-* **Example Response (SMS without URL):**
+---
+
+### C. Direct URL Threat Scan (`POST /scan` or `POST /scan-url`)
+
+Performs a weighted VirusTotal threat analysis on a URL. Utilizes in-memory and database dual-layer caching.
+
+* **Endpoint:** `POST /scan` or `POST /scan-url`
+* **Headers:** `Authorization: Bearer <KWAGO_API_KEY>`
+* **Request Body:**
   ```json
   {
-    "message": "Hey mom, I will be home for dinner around 7pm.",
-    "cnn_analysis": {
-      "score": 0.0018,
-      "verdict": "benign"
-    },
-    "url_analysis": {
-      "has_url": false,
-      "extracted_url": null,
-      "score": null,
-      "verdict": null,
-      "total_weight": null,
-      "explanation": "No URL found in the SMS message.",
-      "contributions": []
-    }
+    "url": "http://suspicious-site.com/login"
   }
   ```
 
-#### Response Fields Explanation (For Android Client Ensemble Decision)
+* **Response Body (`UrlAnalysisResult`):**
+  ```json
+  {
+    "has_url": true,
+    "extracted_url": "http://suspicious-site.com/login",
+    "score": 0.85,
+    "verdict": "malicious",
+    "total_weight": 14.85,
+    "explanation": "This URL is flagged as malicious (threat score: 0.85). Detected by: Kaspersky (malicious).",
+    "contributions": [
+      "Kaspersky (malicious)"
+    ]
+  }
+  ```
 
-* `message` (`string`): The original raw SMS text analyzed.
-* `cnn_analysis` (`object`):
-  * `score` (`float`, `0.0` - `1.0`): The raw threat/spam probability score computed by the CNN-BiGRU deep learning model.
-  * `verdict` (`string`): CNN model classification (`"spam"` if `score >= 0.5`, else `"benign"`).
-* `url_analysis` (`object`):
-  * `has_url` (`boolean`): Indicates whether an HTTP/HTTPS/WWW URL was extracted from the SMS.
-  * `extracted_url` (`string|null`): The primary URL extracted from the SMS message.
-  * `score` (`float|null`, `0.0` - `1.0`): VirusTotal weighted threat score (`0.0` safe to `1.0` dangerous), or `null` if no URL is present.
-  * `verdict` (`string|null`): VirusTotal URL threat classification (`"malicious"`, `"suspicious"`, `"benign"`, or `null`).
-  * `total_weight` (`float|null`): Sum of weights of VirusTotal scanning engines evaluated.
-  * `explanation` (`string|null`): Detailed calculation formula breakdown.
-  * `contributions` (`array`): Individual engine scanning scores and assigned weights.
+---
+
+### D. URL Reputation Client Sync (`GET /url-reputations`)
+
+Retrieves cached URL threat reputation records for local mobile client or VPN synchronization. Supports incremental sync via timestamp query parameter.
+
+* **Endpoint:** `GET /url-reputations`
+* **Headers:** `Authorization: Bearer <KWAGO_API_KEY>`
+* **Query Parameters:**
+  * `since_timestamp` *(optional)*: Unix epoch timestamp in milliseconds (e.g. `1725292800000`).
+* **Response Body (`UrlReputationSyncResponse`):**
+  ```json
+  {
+    "total_records": 1,
+    "last_synced_at": "2026-09-07T21:50:00Z",
+    "urls": [
+      {
+        "extracted_url": "http://fake-claim.com",
+        "normalized_host": "fake-claim.com",
+        "verdict": "malicious",
+        "score": 0.90,
+        "total_weight": 14.85,
+        "explanation": "This URL is flagged as malicious (threat score: 0.90). Detected by: Fortinet (malicious).",
+        "contributions": [
+          "Fortinet (malicious)"
+        ]
+      }
+    ]
+  }
+  ```
+
+---
+
+### E. VirusTotal Quota Check (`GET /quota`)
+
+Retrieves API usage limits and remaining VirusTotal quotas.
+
+* **Endpoint:** `GET /quota`
+* **Headers:** `Authorization: Bearer <KWAGO_API_KEY>`
+* **Response Body:**
+  ```json
+  {
+    "endpoint": "https://www.virustotal.com/api/v3/users/me",
+    "quota_info": { ... }
+  }
+  ```

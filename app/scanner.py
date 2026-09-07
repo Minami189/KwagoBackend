@@ -146,6 +146,177 @@ def format_verdict_explanation(
         return f"This URL is flagged as {verdict} (threat score: {normalized_score:.2f})."
 
 
+def generate_cnn_explanation(message: str, cnn_score: float) -> Tuple[str, str]:
+    """
+    Analyzes message keywords and CNN model probability to output a precise, human-readable explanation sentence.
+    """
+    import re
+    msg_lower = message.lower()
+    
+    # Specific keyword pattern categories
+    reward_bonus_pattern = r"\b(bonus|deposit|promo|promos|gift\s*card|free|prize|reward|congrats|congratulations|won|winner|claim|cashback|earn|discount|php|\$\d+|\b\d+\s*pesos)\b"
+    urgency_security_pattern = r"\b(suspended|locked|security\s*breach|unauthorized|compromised|deactivated|freeze|fraud|urgent\s*action|immediate\s*verification|immediately\s*verify)\b"
+    action_download_pattern = r"\b(downloading\s*the\s*app|download\s*app|install\s*app|app\s*store|apk|click\s*here|click\s*link|register\s*now|sign\s*up)\b"
+    link_pattern = r"http[s]?://"
+
+    reward_match = re.search(reward_bonus_pattern, msg_lower)
+    urgency_match = re.search(urgency_security_pattern, msg_lower)
+    action_match = re.search(action_download_pattern, msg_lower)
+    link_match = re.search(link_pattern, msg_lower)
+
+    if cnn_score >= 0.50:
+        verdict = "harmful" if cnn_score >= 0.70 else "spam"
+        if reward_match and action_match:
+            explanation = "Promotes unsolicited monetary bonuses and app download incentives common in smishing scams."
+        elif reward_match:
+            explanation = "Promotes unsolicited monetary bonuses, deposit rewards, or financial incentives."
+        elif urgency_match:
+            explanation = "Uses urgent account suspension or security breach warnings demanding immediate verification."
+        elif action_match:
+            explanation = "Demands unsolicited app downloads or external registrations."
+        elif link_match:
+            explanation = "Contains urgency cues combined with unverified web links."
+        else:
+            explanation = "Exhibits linguistic patterns common in unsolicited spam or smishing messages."
+    else:
+        verdict = "benign"
+        explanation = "Message text displays standard conversational language with no smishing indicators."
+
+    return verdict, explanation
+
+
+def compute_ensemble_score(
+    ml_confidence: float,
+    cnn_score: float,
+    url_score: Optional[float]
+) -> float:
+    """
+    Computes the ensemble classification score:
+    - Case 3A (URL present & completed): 50% DL / 25% URL / 25% ML
+    - Case 1B & 2B (No URL or pending URL scan): 66.7% DL (2/3) + 33.3% ML (1/3)
+    """
+    ml_val = ml_confidence / 100.0 if ml_confidence > 1.0 else ml_confidence
+    dl_val = cnn_score / 100.0 if cnn_score > 1.0 else cnn_score
+
+    if url_score is not None:
+        u_val = url_score / 100.0 if url_score > 1.0 else url_score
+        score = (0.50 * dl_val) + (0.25 * u_val) + (0.25 * ml_val)
+    else:
+        # Re-normalize 66.7% DL (2/3) + 33.3% ML (1/3)
+        score = ((2.0 / 3.0) * dl_val) + ((1.0 / 3.0) * ml_val)
+
+    return round(score, 4)
+
+
+def generate_overall_summary(
+    message: str,
+    ml_confidence: float,
+    cnn_score: float,
+    cnn_explanation: str,
+    url_analysis: dict,
+) -> Tuple[str, float, str]:
+    """
+    Synthesizes a deep multi-layer overall threat verdict, overall threat score, and executive summary explanation
+    comparing findings across the Local ML layer, Deep Learning layer, and URL Threat Scanner layer.
+    """
+    import re
+    msg_lower = message.lower()
+    
+    has_url = url_analysis.get("has_url", False)
+    url_verdict = url_analysis.get("verdict")
+    # Only treat url_score as active if has_url is True, score is not None, AND verdict is NOT pending
+    url_score = url_analysis.get("score") if (has_url and url_analysis.get("score") is not None and url_verdict != "pending") else None
+    extracted_url = url_analysis.get("extracted_url")
+    url_contributions = url_analysis.get("contributions") or []
+
+    # Calculate exact ensemble score (re-normalizes over ML & DL if URL is None or pending)
+    final_score = compute_ensemble_score(ml_confidence, cnn_score, url_score)
+
+    ml_pct = int(round(ml_confidence * 100 if ml_confidence <= 1.0 else ml_confidence))
+    dl_pct = int(round(cnn_score * 100 if cnn_score <= 1.0 else cnn_score))
+
+    # Normalize cnn_explanation lower for embedding
+    cnn_reason_lower = cnn_explanation[0].lower() + cnn_explanation[1:] if cnn_explanation else "contains suspicious patterns"
+    if cnn_reason_lower.endswith("."):
+        cnn_reason_lower = cnn_reason_lower[:-1]
+
+    # Label layers
+    ml_label = "Harmful" if ml_pct >= 85 else ("Suspicious" if ml_pct >= 70 else "Safe" if ml_pct < 50 else "Moderate Risk")
+
+    # 1. Overall Verdict Determination
+    if final_score >= 0.85 or url_verdict == "malicious":
+        overall_verdict = "Harmful"
+        if url_verdict == "malicious" and final_score < 0.85:
+            final_score = max(final_score, 0.85)
+    elif final_score >= 0.70 or url_verdict == "suspicious":
+        overall_verdict = "Suspicious"
+        if url_verdict == "suspicious" and final_score < 0.70:
+            final_score = max(final_score, 0.70)
+    else:
+        overall_verdict = "Safe"
+
+    # 2. Special Case: Clean URL Mitigated Text Risk (FreshAPP Screenshot Case!)
+    # If text models indicated risk (ML or DL >= 70), BUT overall_verdict is Safe because URL was verified clean (0.0)
+    if overall_verdict == "Safe" and (ml_pct >= 70 or dl_pct >= 70) and url_verdict in ["benign", "clean"]:
+        overall_explanation = "Although message text exhibits smishing cues, the overall message is verified as Safe because the embedded web link was verified clean."
+        return overall_verdict, final_score, overall_explanation
+
+    # 3. Multi-Layer Synthesis Sentence Construction
+    explanation_parts = []
+
+    # Case A: Disagreement between ML and DL (e.g. ML = Safe/Suspicious, DL = High Risk Harmful)
+    if ml_pct < 70 and dl_pct >= 85:
+        explanation_parts.append(
+            f"Though the local ML layer marked this as {ml_label}, the Deep Learning layer detected High Risk because it {cnn_reason_lower}."
+        )
+    elif ml_pct >= 85 and dl_pct < 70:
+        explanation_parts.append(
+            f"Although the local ML layer flagged High Risk, the Deep Learning model evaluated the message text as lower risk."
+        )
+    # Case B: Agreement between ML and DL (Both High Risk or Both Suspicious)
+    elif ml_pct >= 85 and dl_pct >= 85:
+        explanation_parts.append(
+            f"Both the local ML and Deep Learning layers confirmed High Risk because the message {cnn_reason_lower}."
+        )
+    elif ml_pct >= 70 and dl_pct >= 70:
+        explanation_parts.append(
+            f"Both classification layers indicated smishing risk as it {cnn_reason_lower}."
+        )
+    # Case C: Safe Consensus (Both low)
+    elif ml_pct < 70 and dl_pct < 70:
+        explanation_parts.append(
+            f"Both local ML and Deep Learning layers verified this message as safe, showing no smishing indicators."
+        )
+    else:
+        explanation_parts.append(
+            f"Machine Learning and Deep Learning analysis indicates {overall_verdict.lower()} risk."
+        )
+
+    # 4. Append Layer 3 URL Scanner Details
+    if url_verdict == "malicious":
+        flagged_by = f" (detected by {', '.join(url_contributions[:2])})" if url_contributions else ""
+        explanation_parts.append(
+            f"Furthermore, the embedded web link ({extracted_url}) was confirmed as a high-risk malicious phishing site{flagged_by}."
+        )
+    elif url_verdict == "suspicious":
+        explanation_parts.append(
+            f"Additionally, the embedded web link ({extracted_url}) has an unverified or suspicious reputation."
+        )
+    elif url_verdict == "pending":
+        explanation_parts.append(
+            f"Exercise caution: this message contains a web link ({extracted_url}) that has not been verified by online threat intelligence yet, so its safety cannot be guaranteed."
+        )
+
+    overall_explanation = " ".join(explanation_parts)
+
+    return overall_verdict, final_score, overall_explanation
+
+
+
+
+
+
+
 
 # Async VT scanners
 
@@ -433,9 +604,9 @@ async def analyze_sms_url(url: str) -> Dict[str, Any]:
                 "has_url": True,
                 "extracted_url": url,
                 "score": None,
-                "verdict": None,
+                "verdict": "pending",
                 "total_weight": None,
-                "explanation": "VirusTotal scan returned no analysis engine results.",
+                "explanation": "URL security scan is pending verification.",
                 "contributions": [],
             }
 
@@ -709,14 +880,27 @@ async def get_url_reputations(since_timestamp_ms: Optional[int] = None) -> dict:
                     parsed = urlparse(full_url)
                     host = parsed.hostname or parsed.netloc or ""
 
+                verdict_val = scan_data.get("verdict")
+                if not verdict_val:
+                    verdict_val = "benign"
+
+                score_val = scan_data.get("score")
+                score_float = float(score_val) if score_val is not None else 0.0
+
+                weight_val = scan_data.get("total_weight")
+                weight_float = float(weight_val) if weight_val is not None else 0.0
+
+                explanation_val = scan_data.get("explanation") or ""
+                contributions_val = scan_data.get("contributions") or []
+
                 urls_list.append({
                     "extracted_url": full_url,
                     "normalized_host": host,
-                    "verdict": scan_data.get("verdict", "benign"),
-                    "score": float(scan_data.get("score") or 0.0),
-                    "total_weight": float(scan_data.get("total_weight") or 0.0),
-                    "explanation": scan_data.get("explanation", ""),
-                    "contributions": scan_data.get("contributions", [])
+                    "verdict": str(verdict_val),
+                    "score": score_float,
+                    "total_weight": weight_float,
+                    "explanation": str(explanation_val),
+                    "contributions": list(contributions_val)
                 })
 
         last_synced = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

@@ -210,38 +210,18 @@ async def scan_sms_message(request: SmsScanRequest):
     try:
         # 1. CNN-BiGRU Deep Learning Model Scoring
         cnn_probability = sms_classifier.predict(message_to_scan)
-        cnn_verdict = "spam" if cnn_probability >= 0.5 else "benign"
+        cnn_verdict, cnn_explanation = scanner.generate_cnn_explanation(message_to_scan, float(cnn_probability))
+        
         cnn_res = CnnAnalysisResult(
-            score=cnn_probability,
-            verdict=cnn_verdict
+            score=float(cnn_probability),
+            verdict=cnn_verdict,
+            explanation=cnn_explanation
         )
 
-        # Compute combined classification score (50% local ML confidence, 50% CNN DL prediction)
         ml_confidence_val = request.ml_confidence or 0.0
-        # Normalize if client sent value in percentage scale (e.g. 90.0) rather than probability (0.90)
-        if ml_confidence_val > 1.0:
-            ml_confidence_val = ml_confidence_val / 100.0
-
-        final_combined_score = 0.5 * ml_confidence_val + 0.5 * cnn_probability
-
-        sms_id = None
-        # Only save SMS logs and classification results if user allowed saving AND combined score reaches 70% (0.70) threshold
-        if request.allow_save and final_combined_score >= 0.70:
-            # Save SMS to public.sms_message and retrieve key
-            sms_id = await scanner.save_sms_message_to_db(request.sender, message_to_scan, 0)
-            if sms_id:
-                # Save CNN and local ML model predictions to public.analysis_result
-                await scanner.save_analysis_result_to_db(
-                    sms_id=sms_id,
-                    ml_prediction=request.ml_prediction or "unknown",
-                    ml_confidence=float(ml_confidence_val),
-                    dl_prediction=cnn_verdict,
-                    dl_confidence=float(cnn_probability)
-                )
-
-
 
         # 2. VirusTotal URL Threat Scoring with dual-layer caching (in-memory + database)
+        url_res_dict = {}
         if request.has_url and request.extracted_url:
             primary_url = request.extracted_url.strip()
             
@@ -253,23 +233,13 @@ async def scan_sms_message(request: SmsScanRequest):
                 # Cache miss: Run live query
                 url_res_dict = await scanner.analyze_sms_url(primary_url)
                 
-                # 1. Store in database global cache (linked to CACHE_SMS)
+                # Store in database global cache (linked to CACHE_SMS)
                 await scanner.save_url_scan_to_db(
                     url=primary_url,
                     sms_id="CACHE_SMS",
                     is_malicious=1 if url_res_dict.get("verdict") == "malicious" else 0,
                     scan_result=url_res_dict
                 )
-                
-                # 2. Store in database linked to the actual user sms_id (only on cache miss!)
-                if request.allow_save and sms_id:
-                    await scanner.save_url_scan_to_db(
-                        url=primary_url,
-                        sms_id=sms_id,
-                        is_malicious=1 if url_res_dict.get("verdict") == "malicious" else 0,
-                        scan_result=url_res_dict
-                    )
-
             
             url_res = UrlAnalysisResult(**url_res_dict)
         else:
@@ -283,11 +253,48 @@ async def scan_sms_message(request: SmsScanRequest):
                 contributions=[]
             )
 
+        # 3. Synthesize Overall Verdict, Score, and Executive Summary Explanation (50% DL / 25% URL / 25% ML)
+        overall_verdict, overall_score, overall_explanation = scanner.generate_overall_summary(
+            message=message_to_scan,
+            ml_confidence=float(ml_confidence_val),
+            cnn_score=float(cnn_probability),
+            cnn_explanation=cnn_explanation,
+            url_analysis=url_res_dict if (request.has_url and request.extracted_url) else {}
+        )
+
+        # 4. Only save SMS logs and classification results if user allowed saving AND overall_score reaches 70% (0.70) threshold
+        if request.allow_save and overall_score >= 0.70:
+            # Save SMS to public.sms_message and retrieve key
+            sms_id = await scanner.save_sms_message_to_db(request.sender, message_to_scan, 0)
+            if sms_id:
+                # Save CNN and local ML model predictions to public.analysis_result
+                await scanner.save_analysis_result_to_db(
+                    sms_id=sms_id,
+                    ml_prediction=request.ml_prediction or "unknown",
+                    ml_confidence=float(ml_confidence_val),
+                    dl_prediction=cnn_verdict,
+                    dl_confidence=float(cnn_probability)
+                )
+
+                # Store URL in database linked to the user sms_id if URL was present
+                if request.has_url and request.extracted_url and url_res_dict:
+                    await scanner.save_url_scan_to_db(
+                        url=request.extracted_url.strip(),
+                        sms_id=sms_id,
+                        is_malicious=1 if url_res_dict.get("verdict") == "malicious" else 0,
+                        scan_result=url_res_dict
+                    )
+
         return SmsScanResponse(
             message=message_to_scan,
+            overall_verdict=overall_verdict,
+            overall_score=overall_score,
+            overall_explanation=overall_explanation,
             cnn_analysis=cnn_res,
             url_analysis=url_res,
         )
+
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

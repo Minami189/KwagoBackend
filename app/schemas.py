@@ -70,7 +70,8 @@ class SmsScanRequest(BaseModel):
 
 class CnnAnalysisResult(BaseModel):
     score: float = Field(..., description="CNN-BiGRU deep learning model threat/spam probability score (0.0 to 1.0).")
-    verdict: str = Field(..., description="CNN model verdict ('spam' or 'benign').")
+    verdict: str = Field(..., description="CNN model verdict ('harmful', 'spam', or 'benign').")
+    explanation: Optional[str] = Field(None, description="Human-readable explanation of why the message content was flagged.")
 
 
 class UrlAnalysisResult(BaseModel):
@@ -86,11 +87,11 @@ class UrlAnalysisResult(BaseModel):
 class UrlReputationItem(BaseModel):
     extracted_url: str = Field(..., description="The full extracted URL.")
     normalized_host: str = Field(..., description="The normalized host or domain of the URL.")
-    verdict: str = Field(..., description="The threat verdict ('malicious', 'suspicious', or 'benign').")
-    score: float = Field(..., description="The threat score (0.0 to 1.0).")
-    total_weight: float = Field(..., description="Total weight of evaluated VirusTotal engines.")
-    explanation: str = Field(..., description="Human-readable breakdown explanation.")
-    contributions: List[str] = Field(..., description="List of flagging security vendors.")
+    verdict: Optional[str] = Field("benign", description="The threat verdict ('malicious', 'suspicious', 'pending', or 'benign').")
+    score: Optional[float] = Field(0.0, description="The threat score (0.0 to 1.0).")
+    total_weight: Optional[float] = Field(0.0, description="Total weight of evaluated VirusTotal engines.")
+    explanation: Optional[str] = Field("", description="Human-readable breakdown explanation.")
+    contributions: Optional[List[str]] = Field(default_factory=list, description="List of flagging security vendors.")
 
 
 class UrlReputationSyncResponse(BaseModel):
@@ -99,10 +100,13 @@ class UrlReputationSyncResponse(BaseModel):
     urls: List[UrlReputationItem] = Field(..., description="List of URL reputation items.")
 
 
-
 class SmsScanResponse(BaseModel):
     message: str = Field(..., description="The original SMS message analyzed.")
-    cnn_analysis: CnnAnalysisResult = Field(..., description="Scoring results from the CNN-BiGRU deep learning model.")
-    url_analysis: UrlAnalysisResult = Field(..., description="Scoring results from the VirusTotal URL threat scanner.")
+    overall_verdict: str = Field(..., description="Overall combined threat verdict ('harmful', 'suspicious', 'benign').")
+    overall_score: float = Field(..., description="Overall combined threat score (0.0 safe to 1.0 dangerous).")
+    overall_explanation: str = Field(..., description="Human-readable executive summary of the overall classification.")
+    cnn_analysis: CnnAnalysisResult = Field(..., description="Scoring results and explanation from the CNN-BiGRU deep learning model.")
+    url_analysis: UrlAnalysisResult = Field(..., description="Scoring results and explanation from the VirusTotal URL threat scanner.")
+
 
 
