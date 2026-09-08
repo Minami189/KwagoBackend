@@ -8,8 +8,8 @@ FastAPI backend for multi-layer SMS smishing classification, deep learning NLP a
 
 KwagoBackend combines three distinct threat detection layers to determine an overall classification score ($S$) and synthesize human-readable executive explanations for mobile users:
 
-1. **Local ML Layer (Random Forest + XGBoost)**: Mobile client pre-scan confidence score.
-2. **Server Deep Learning Layer (CNN-BiGRU ONNX Model)**: NLP analysis extracting linguistic urgency and scam phrasing.
+1. **Local ML Layer (Random Forest + XGBoost)**: Mobile client pre-scan confidence score (`Safe`: $< 50\%$, `Suspicious`: $50\% - 85\%$, `Harmful`: $\ge 85\%$).
+2. **Server Deep Learning Layer (CNN-BiGRU ONNX Model)**: NLP analysis extracting linguistic urgency and scam phrasing (`Safe`: $< 50\%$, `Suspicious`: $50\% - 85\%$, `Harmful`: $\ge 85\%$).
 3. **URL Threat Scanner Layer (VirusTotal API)**: Weighted threat reputation analysis over security vendor engines.
 
 ---
@@ -24,21 +24,33 @@ KwagoBackend combines three distinct threat detection layers to determine an ove
 
 ---
 
-### Classification Thresholds
+### Classification Thresholds & Verdict Matrix
 
-| Ensemble Score ($S$) | Overall Verdict | Risk Level | System Behavior |
-| :--- | :--- | :--- | :--- |
-| **$S \ge 0.85$** | **Harmful** | High Risk | Threat warning generated; logged to database if `allow_save = true`. |
-| **$0.70 \le S < 0.85$** | **Suspicious** | Medium Risk | Caution alert shown; logged to database if `allow_save = true`. |
-| **$S < 0.70$** | **Safe** | Low Risk | Allowed normally; bypassed from database logging. |
+| Verdict | Probability Score Range ($S$) | Behavior | Status Badge / UI Color | System Actions |
+| :--- | :--- | :--- | :--- | :--- |
+| **Safe** | **Below 50% ($S < 0.50$)** | No threat or scam patterns detected. | Green (`#26CE6B`) | Allowed normally; bypassed from database logging. |
+| **Suspicious** | **50% to 85% ($0.50 \le S < 0.85$)** | Unsolicited, promotional, or high-urgency content. | Orange (`#FFF07048`) | Caution alert shown; logged to DB if `allow_save = true`. |
+| **Harmful** | **Above 85% ($S \ge 0.85$)** | High risk SMS scam / credential phishing. | Red (`#FF4D55`) | Threat warning generated; logged to DB if `allow_save = true`. |
 
 ---
 
-### Explanation Synthesis Rules
+### Multi-Layer Explanation Synthesis Matrix
 
-* **Clean URL Mitigation**: If text analysis flags risk (ML/DL $\ge 0.70$) but an embedded web link is verified clean (`0.0`), driving $S < 0.70$, the backend outputs:  
-  > *"Although message text exhibits smishing cues, the overall message is verified as Safe because the embedded web link was verified clean."*
-* **Pending URL Caution Warning**: When a web link has not completed scanning, the backend appends:  
+The backend explicitly compares layer verdicts (Local ML, Server DL, URL Threat Scanner) to explain **WHY** the final decision was reached:
+
+* **ML Risk vs DL Safe (Overall Safe)**:  
+  > *"Although the local ML layer marked this as suspicious, the Deep Learning layer evaluated the message text as safe, so the overall message is verified as Safe."* (Appends web link verified clean if URL present).
+* **DL Risk vs ML Safe (Overall Safe)**:  
+  > *"Although the Deep Learning layer detected potential smishing cues, the local ML layer marked it as safe, so the overall message is verified as Safe."* (Appends web link verified clean if URL present).
+* **ML Risk vs DL Safe (Overall Suspicious)**:  
+  > *"Although the Deep Learning model evaluated the message text as safe, the local ML layer flagged this as suspicious, resulting in an overall Suspicious classification."*
+* **DL Risk vs ML Safe (Overall Suspicious)**:  
+  > *"Though the local ML layer marked this as safe, the Deep Learning layer detected smishing risk because it {reason}, classifying the overall message as Suspicious."*
+* **Consensus Risk (Overall Suspicious / Harmful)**:  
+  > *"Both classification layers indicated smishing risk as the message {reason}, resulting in an overall Suspicious verdict."*
+* **Malicious URL Elevation (Overall Harmful)**:  
+  > *"Although message text appeared lower risk, the overall message is Harmful because the embedded web link ({url}) was confirmed as a high-risk malicious phishing site."*
+* **Pending URL Caution Warning**:  
   > *"Exercise caution: this message contains a web link ({url}) that has not been verified by online threat intelligence yet, so its safety cannot be guaranteed."*
 
 ---
@@ -219,7 +231,7 @@ Retrieves cached URL threat reputation records for local mobile client or VPN sy
   ```json
   {
     "total_records": 1,
-    "last_synced_at": "2026-09-07T21:50:00Z",
+    "last_synced_at": "2026-09-08T19:00:00Z",
     "urls": [
       {
         "extracted_url": "http://fake-claim.com",

@@ -209,8 +209,13 @@ async def scan_sms_message(request: SmsScanRequest):
 
     try:
         # 1. CNN-BiGRU Deep Learning Model Scoring
+        has_url_flag = request.has_url and bool(request.extracted_url)
         cnn_probability = sms_classifier.predict(message_to_scan)
-        cnn_verdict, cnn_explanation = scanner.generate_cnn_explanation(message_to_scan, float(cnn_probability))
+        cnn_verdict, cnn_explanation = scanner.generate_cnn_explanation(
+            message=message_to_scan,
+            cnn_score=float(cnn_probability),
+            has_url=has_url_flag
+        )
         
         cnn_res = CnnAnalysisResult(
             score=float(cnn_probability),
@@ -262,8 +267,8 @@ async def scan_sms_message(request: SmsScanRequest):
             url_analysis=url_res_dict if (request.has_url and request.extracted_url) else {}
         )
 
-        # 4. Only save SMS logs and classification results if user allowed saving AND overall_score reaches 70% (0.70) threshold
-        if request.allow_save and overall_score >= 0.70:
+        # 4. Only save SMS logs and classification results if user allowed saving AND overall_score reaches 50% (0.50) threshold
+        if request.allow_save and overall_score >= 0.50:
             # Save SMS to public.sms_message and retrieve key
             sms_id = await scanner.save_sms_message_to_db(request.sender, message_to_scan, 0)
             if sms_id:
