@@ -157,7 +157,8 @@ Scans an SMS message text, evaluates local ML confidence, runs server CNN-BiGRU 
     "allow_save": false,
     "sender": "+639123456789",
     "ml_prediction": "smishing",
-    "ml_confidence": 0.85
+    "ml_confidence": 0.85,
+    "auto_report": true
   }
   ```
 

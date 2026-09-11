@@ -108,12 +108,22 @@ def compute_weighted_verdict(
 
     normalized_score = total_weighted_score / total_weight
 
-    # Harsher Security Boost Rules:
-    # 1. Trusted Vendor Boost: Reputable vendor (weight >= 0.5) flags URL as malicious -> elevate score to malicious (>= 0.65)
-    if has_trusted_malicious or malicious_count >= 2:
+    # Harsher Security Boost Rules based on vendor consensus and trusted vendors:
+    if malicious_count >= 15:
+        normalized_score = max(normalized_score, 1.00)
+    elif malicious_count >= 10:
+        normalized_score = max(normalized_score, 0.95)
+    elif malicious_count >= 5:
+        normalized_score = max(normalized_score, 0.85)
+    elif malicious_count >= 3:
+        normalized_score = max(normalized_score, 0.75)
+    elif has_trusted_malicious or malicious_count >= 2:
         normalized_score = max(normalized_score, 0.65)
-    # 2. Early Warning Boost: Single vendor flags as malicious or suspicious -> elevate to at least suspicious (>= 0.25)
-    elif malicious_count >= 1 or suspicious_count >= 1:
+    elif malicious_count >= 1:
+        normalized_score = max(normalized_score, 0.45)
+    elif suspicious_count >= 2:
+        normalized_score = max(normalized_score, 0.40)
+    elif suspicious_count >= 1:
         normalized_score = max(normalized_score, 0.25)
 
     # Stricter Verdict Thresholds
@@ -124,7 +134,7 @@ def compute_weighted_verdict(
     else:
         verdict = "benign"
 
-    return verdict, normalized_score, total_weight, contribution_lines
+    return verdict, round(normalized_score, 4), total_weight, contribution_lines
 
 
 
@@ -741,6 +751,50 @@ async def close_db():
     pass
 
 
+def recalculate_cached_url_score(scan_data: dict) -> dict:
+    """
+    Ensures cached scan results reflect the latest harsher security boost rules based on vendor consensus.
+    """
+    if not isinstance(scan_data, dict):
+        return scan_data
+
+    contributions = scan_data.get("contributions") or []
+    malicious_count = sum(1 for c in contributions if "(malicious)" in str(c).lower())
+    suspicious_count = sum(1 for c in contributions if "(suspicious)" in str(c).lower())
+    current_score = scan_data.get("score") or 0.0
+
+    boosted_score = current_score
+    if malicious_count >= 15:
+        boosted_score = max(boosted_score, 1.00)
+    elif malicious_count >= 10:
+        boosted_score = max(boosted_score, 0.95)
+    elif malicious_count >= 5:
+        boosted_score = max(boosted_score, 0.85)
+    elif malicious_count >= 3:
+        boosted_score = max(boosted_score, 0.75)
+    elif malicious_count >= 2:
+        boosted_score = max(boosted_score, 0.65)
+    elif malicious_count >= 1:
+        boosted_score = max(boosted_score, 0.45)
+    elif suspicious_count >= 2:
+        boosted_score = max(boosted_score, 0.40)
+    elif suspicious_count >= 1:
+        boosted_score = max(boosted_score, 0.25)
+
+    if round(boosted_score, 4) != round(current_score, 4):
+        scan_data["score"] = round(boosted_score, 4)
+        if boosted_score >= 0.45:
+            scan_data["verdict"] = "malicious"
+        elif boosted_score >= 0.20:
+            scan_data["verdict"] = "suspicious"
+        verdict = scan_data.get("verdict", "malicious")
+        flagged_engines = ", ".join(contributions)
+        if flagged_engines:
+            scan_data["explanation"] = f"This URL is flagged as {verdict} (threat score: {scan_data['score']:.2f}). Detected by: {flagged_engines}."
+
+    return scan_data
+
+
 async def lookup_cached_url(url: str) -> dict | None:
     """
     Check the in-memory cache and then the Supabase database for a fresh cached scan of the URL.
@@ -749,7 +803,7 @@ async def lookup_cached_url(url: str) -> dict | None:
     # 1. Check in-memory cache
     if url in memory_cache:
         print(f"Memory cache hit for URL: {url}")
-        return memory_cache[url]
+        return recalculate_cached_url_score(memory_cache[url])
 
     # 2. Check Supabase database cache (under CACHE_SMS)
     if not supabase:
@@ -761,6 +815,8 @@ async def lookup_cached_url(url: str) -> dict | None:
             .select("is_malicious, scan_result, created_at, url!inner(full_url)") \
             .eq("url.full_url", url) \
             .eq("sms_id", "CACHE_SMS") \
+            .order("created_at", desc=True) \
+            .limit(1) \
             .execute()
             
         if response.data:
@@ -771,7 +827,8 @@ async def lookup_cached_url(url: str) -> dict | None:
                 created_time = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
                 if datetime.now(timezone.utc) - created_time < timedelta(days=7):
                     scan_data = json.loads(record["scan_result"])
-                    # Store in memory cache
+                    scan_data = recalculate_cached_url_score(scan_data)
+                    # Store updated score in memory cache
                     memory_cache[url] = scan_data
                     print(f"Database cache hit for URL: {url}")
                     return scan_data
@@ -883,6 +940,44 @@ async def save_analysis_result_to_db(sms_id: str, ml_prediction: str, ml_confide
         }).execute()
     except Exception as e:
         print(f"Failed to save analysis result for sms_id {sms_id}: {e}")
+
+
+async def save_ntc_report_to_db(
+    message: str,
+    url_analysis: dict,
+    ml_score: float,
+    dl_score: float,
+    final_score: float,
+    verdict: str,
+    sender: str,
+    status: str = "pending"
+) -> str | None:
+    """
+    Insert a smishing incident report into public.ntc_report for NTC regulatory compliance.
+    """
+    if not supabase:
+        return None
+    try:
+        import uuid
+        report_id = str(uuid.uuid4())
+        record = {
+            "id": report_id,
+            "message": message,
+            "url_analysis": url_analysis if url_analysis else {},
+            "ml_score": float(ml_score),
+            "dl_score": float(dl_score),
+            "final_score": float(final_score),
+            "verdict": str(verdict),
+            "sender": sender or "UNKNOWN",
+            "status": status
+        }
+        res = supabase.table("ntc_report").insert(record).execute()
+        if res.data:
+            print(f"NTC report successfully logged to DB with id {report_id}")
+            return report_id
+    except Exception as e:
+        print(f"Failed to save NTC report to database: {e}")
+    return None
 
 
 async def prune_expired_records_db():

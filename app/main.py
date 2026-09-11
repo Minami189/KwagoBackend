@@ -290,6 +290,19 @@ async def scan_sms_message(request: SmsScanRequest):
                         scan_result=url_res_dict
                     )
 
+        # 5. Automatically log to NTC report table if auto_report is enabled AND overall_score reaches suspicious/harmful threshold (>= 0.50)
+        if request.auto_report and overall_score >= 0.50:
+            await scanner.save_ntc_report_to_db(
+                message=message_to_scan,
+                url_analysis=url_res_dict if (request.has_url and request.extracted_url) else {},
+                ml_score=float(ml_confidence_val),
+                dl_score=float(cnn_probability),
+                final_score=float(overall_score),
+                verdict=str(overall_verdict),
+                sender=request.sender or "UNKNOWN",
+                status="pending"
+            )
+
         return SmsScanResponse(
             message=message_to_scan,
             overall_verdict=overall_verdict,

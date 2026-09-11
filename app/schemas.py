@@ -60,6 +60,11 @@ class SmsScanRequest(BaseModel):
         description="The local ML model smishing confidence score or probability.",
         json_schema_extra={"example": 0.90}
     )
+    auto_report: bool = Field(
+        False,
+        description="Whether to automatically log this scan to the NTC reports table if suspicious/harmful.",
+        json_schema_extra={"example": False}
+    )
 
 
 
