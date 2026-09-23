@@ -114,4 +114,65 @@ class SmsScanResponse(BaseModel):
     url_analysis: UrlAnalysisResult = Field(..., description="Scoring results and explanation from the VirusTotal URL threat scanner.")
 
 
+class MisclassificationReportRequest(BaseModel):
+    message: str = Field(
+        ...,
+        description="The raw SMS message text that was misclassified.",
+        json_schema_extra={"example": "Your BDO account OTP is 987654. Do not share."}
+    )
+    sender: Optional[str] = Field(
+        None,
+        description="The sender's phone number or header.",
+        json_schema_extra={"example": "BDO"}
+    )
+    has_url: bool = Field(
+        False,
+        description="Whether the SMS contains an embedded URL.",
+        json_schema_extra={"example": False}
+    )
+    extracted_url: Optional[str] = Field(
+        None,
+        description="The URL contained in the SMS, if applicable.",
+        json_schema_extra={"example": None}
+    )
+    original_verdict: str = Field(
+        ...,
+        description="The original system verdict ('Safe', 'Suspicious', or 'Harmful').",
+        json_schema_extra={"example": "Harmful"}
+    )
+    original_score: float = Field(
+        ...,
+        description="The original overall threat score (0.0 to 1.0).",
+        json_schema_extra={"example": 0.85}
+    )
+    user_verdict: str = Field(
+        ...,
+        description="The user's reported correct verdict ('Safe' or 'Harmful').",
+        json_schema_extra={"example": "Safe"}
+    )
+    report_type: Optional[str] = Field(
+        None,
+        description="Classification error type ('false_positive' or 'false_negative'). Auto-derived if omitted.",
+        json_schema_extra={"example": "false_positive"}
+    )
+    user_comment: Optional[str] = Field(
+        None,
+        description="User feedback notes explaining why the verdict was incorrect.",
+        json_schema_extra={"example": "This was an official bank OTP message."}
+    )
+    app_version: Optional[str] = Field(
+        None,
+        description="The version of the mobile client app.",
+        json_schema_extra={"example": "1.2.0"}
+    )
+    device_id: Optional[str] = Field(
+        None,
+        description="Optional anonymous device identifier to prevent duplicate submissions.",
+        json_schema_extra={"example": "anon-device-12345"}
+    )
 
+
+class MisclassificationReportResponse(BaseModel):
+    status: str = Field("success", description="Status of the report submission.")
+    report_id: str = Field(..., description="Unique UUID assigned to the submitted report.")
+    message: str = Field("Misclassification report submitted successfully.", description="Acknowledgment message.")

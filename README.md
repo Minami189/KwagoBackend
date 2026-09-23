@@ -264,3 +264,36 @@ Retrieves API usage limits and remaining VirusTotal quotas.
     "quota_info": { ... }
   }
   ```
+
+---
+
+### F. Misclassification Report (`POST /report-misclassification`)
+
+Submits user feedback when an SMS was misclassified (e.g. False Positive or False Negative) for dataset curation and model retraining.
+
+* **Endpoint:** `POST /report-misclassification`
+* **Headers:** `Authorization: Bearer <KWAGO_API_KEY>`
+* **Request Body (`MisclassificationReportRequest`):**
+  ```json
+  {
+    "message": "Dear customer, your BDO OTP is 492810. Do not share this with anyone.",
+    "sender": "BDO",
+    "has_url": false,
+    "extracted_url": null,
+    "original_verdict": "Harmful",
+    "original_score": 0.85,
+    "user_verdict": "Safe",
+    "report_type": "false_positive",
+    "user_comment": "Official bank OTP message falsely flagged as harmful.",
+    "app_version": "1.2.0",
+    "device_id": "anon-device-12345"
+  }
+  ```
+* **Response Body (`MisclassificationReportResponse`):**
+  ```json
+  {
+    "status": "success",
+    "report_id": "7f8b9c2a-1122-3344-5566-778899aabbcc",
+    "message": "Misclassification report received successfully. Thank you for your feedback!"
+  }
+  ```

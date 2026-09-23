@@ -980,6 +980,67 @@ async def save_ntc_report_to_db(
     return None
 
 
+async def save_misclassification_report_to_db(
+    message: str,
+    original_verdict: str,
+    original_score: float,
+    user_verdict: str,
+    sender: str | None = None,
+    has_url: bool = False,
+    extracted_url: str | None = None,
+    report_type: str | None = None,
+    user_comment: str | None = None,
+    app_version: str | None = None,
+    device_id: str | None = None,
+    status: str = "pending_review"
+) -> str | None:
+    """
+    Insert a user-submitted misclassification report into public.misclassification_reports.
+    Auto-derives report_type ('false_positive' vs 'false_negative') if not explicitly provided.
+    """
+    if not supabase:
+        return None
+    try:
+        import uuid
+        report_id = str(uuid.uuid4())
+
+        # Auto-derive report_type if omitted
+        if not report_type:
+            user_clean = (user_verdict or "").strip().lower()
+            orig_clean = (original_verdict or "").strip().lower()
+            if user_clean in ["safe", "benign", "legitimate"]:
+                report_type = "false_positive"
+            elif user_clean in ["harmful", "suspicious", "smishing", "spam", "malicious"]:
+                report_type = "false_negative"
+            elif orig_clean in ["safe", "benign"]:
+                report_type = "false_negative"
+            else:
+                report_type = "false_positive"
+
+        record = {
+            "id": report_id,
+            "sender": sender or "UNKNOWN",
+            "message": message,
+            "has_url": bool(has_url),
+            "extracted_url": extracted_url,
+            "original_verdict": str(original_verdict),
+            "original_score": float(original_score),
+            "user_verdict": str(user_verdict),
+            "report_type": str(report_type),
+            "user_comment": user_comment,
+            "app_version": app_version,
+            "device_id": device_id,
+            "status": status
+        }
+        res = supabase.table("misclassification_reports").insert(record).execute()
+        if res.data:
+            print(f"Misclassification report successfully logged to DB with id {report_id}")
+            return report_id
+    except Exception as e:
+        print(f"Failed to save misclassification report to database: {e}")
+    return None
+
+
 async def prune_expired_records_db():
     """
     Worker task to delete SMS messages and linked logs older than 7 days (168 hours).

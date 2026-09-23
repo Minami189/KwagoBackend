@@ -15,6 +15,8 @@ from app.schemas import (
     CnnAnalysisResult,
     UrlAnalysisResult,
     UrlReputationSyncResponse,
+    MisclassificationReportRequest,
+    MisclassificationReportResponse,
 )
 
 sms_classifier = None
@@ -310,13 +312,52 @@ async def scan_sms_message(request: SmsScanRequest):
             overall_explanation=overall_explanation,
             cnn_analysis=cnn_res,
             url_analysis=url_res,
-        )
-
+         )
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while scanning the SMS message: {str(e)}"
+        )
+
+
+@app.post(
+    "/report-misclassification",
+    response_model=MisclassificationReportResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Report SMS Classification Error",
+    description="Submit user feedback when a message is misclassified (False Positive or False Negative) for model improvement and dataset review.",
+    dependencies=[Depends(verify_api_key)],
+)
+async def report_misclassification(request: MisclassificationReportRequest):
+    try:
+        report_id = await scanner.save_misclassification_report_to_db(
+            message=request.message,
+            original_verdict=request.original_verdict,
+            original_score=request.original_score,
+            user_verdict=request.user_verdict,
+            sender=request.sender,
+            has_url=request.has_url,
+            extracted_url=request.extracted_url,
+            report_type=request.report_type,
+            user_comment=request.user_comment,
+            app_version=request.app_version,
+            device_id=request.device_id,
+        )
+
+        if not report_id:
+            import uuid
+            report_id = str(uuid.uuid4())
+
+        return MisclassificationReportResponse(
+            status="success",
+            report_id=report_id,
+            message="Misclassification report received successfully. Thank you for your feedback!"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while saving the misclassification report: {str(e)}"
         )
 
 
