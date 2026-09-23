@@ -282,6 +282,8 @@ Submits user feedback when an SMS was misclassified (e.g. False Positive or Fals
     "extracted_url": null,
     "original_verdict": "Harmful",
     "original_score": 0.85,
+    "original_ml_score": 0.80,
+    "original_dl_score": null,
     "user_verdict": "Safe",
     "report_type": "false_positive",
     "user_comment": "Official bank OTP message falsely flagged as harmful.",

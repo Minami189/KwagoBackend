@@ -336,6 +336,8 @@ async def report_misclassification(request: MisclassificationReportRequest):
             original_verdict=request.original_verdict,
             original_score=request.original_score,
             user_verdict=request.user_verdict,
+            original_ml_score=request.original_ml_score,
+            original_dl_score=request.original_dl_score,
             sender=request.sender,
             has_url=request.has_url,
             extracted_url=request.extracted_url,

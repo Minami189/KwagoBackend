@@ -145,6 +145,16 @@ class MisclassificationReportRequest(BaseModel):
         description="The original overall threat score (0.0 to 1.0).",
         json_schema_extra={"example": 0.85}
     )
+    original_ml_score: Optional[float] = Field(
+        None,
+        description="The original on-device ML threat score (0.0 to 1.0), or null if not available.",
+        json_schema_extra={"example": 0.85}
+    )
+    original_dl_score: Optional[float] = Field(
+        None,
+        description="The original server DL threat score (0.0 to 1.0), or null if missing/not evaluated.",
+        json_schema_extra={"example": None}
+    )
     user_verdict: str = Field(
         ...,
         description="The user's reported correct verdict ('Safe' or 'Harmful').",

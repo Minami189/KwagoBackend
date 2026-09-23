@@ -945,8 +945,8 @@ async def save_analysis_result_to_db(sms_id: str, ml_prediction: str, ml_confide
 async def save_ntc_report_to_db(
     message: str,
     url_analysis: dict,
-    ml_score: float,
-    dl_score: float,
+    ml_score: float | None,
+    dl_score: float | None,
     final_score: float,
     verdict: str,
     sender: str,
@@ -964,8 +964,8 @@ async def save_ntc_report_to_db(
             "id": report_id,
             "message": message,
             "url_analysis": url_analysis if url_analysis else {},
-            "ml_score": float(ml_score),
-            "dl_score": float(dl_score),
+            "ml_score": float(ml_score) if ml_score is not None else None,
+            "dl_score": float(dl_score) if dl_score is not None else None,
             "final_score": float(final_score),
             "verdict": str(verdict),
             "sender": sender or "UNKNOWN",
@@ -985,6 +985,8 @@ async def save_misclassification_report_to_db(
     original_verdict: str,
     original_score: float,
     user_verdict: str,
+    original_ml_score: float | None = None,
+    original_dl_score: float | None = None,
     sender: str | None = None,
     has_url: bool = False,
     extracted_url: str | None = None,
@@ -997,6 +999,7 @@ async def save_misclassification_report_to_db(
     """
     Insert a user-submitted misclassification report into public.misclassification_reports.
     Auto-derives report_type ('false_positive' vs 'false_negative') if not explicitly provided.
+    Stores original_dl_score and original_ml_score as NULL if not evaluated or missing.
     """
     if not supabase:
         return None
@@ -1024,7 +1027,9 @@ async def save_misclassification_report_to_db(
             "has_url": bool(has_url),
             "extracted_url": extracted_url,
             "original_verdict": str(original_verdict),
-            "original_score": float(original_score),
+            "original_score": float(original_score) if original_score is not None else None,
+            "original_ml_score": float(original_ml_score) if original_ml_score is not None else None,
+            "original_dl_score": float(original_dl_score) if original_dl_score is not None else None,
             "user_verdict": str(user_verdict),
             "report_type": str(report_type),
             "user_comment": user_comment,

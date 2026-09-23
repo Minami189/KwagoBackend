@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS public.misclassification_reports (
     extracted_url TEXT,
     original_verdict VARCHAR(50) NOT NULL,
     original_score DOUBLE PRECISION NOT NULL,
+    original_ml_score DOUBLE PRECISION,
+    original_dl_score DOUBLE PRECISION,
     user_verdict VARCHAR(50) NOT NULL,
     report_type VARCHAR(50) NOT NULL, -- 'false_positive' or 'false_negative'
     user_comment TEXT,
