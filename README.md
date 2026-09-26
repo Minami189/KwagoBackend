@@ -55,7 +55,152 @@ The backend explicitly compares layer verdicts (Local ML, Server DL, URL Threat 
 
 ---
 
-## 2. Folder Structure
+## 2. VirusTotal URL Threat Scanning Mechanics
+
+The URL threat analysis layer evaluates embedded links in real time to catch active credential phishing, banking trojans, and malware distributions that evasion-crafted SMS text might otherwise mask.
+
+---
+
+### A. Dual-Layer Caching Architecture
+
+To respect VirusTotal API quotas and achieve sub-second response times for mobile users, the backend implements a **dual-layer caching pipeline**:
+
+```text
+Incoming URL
+     │
+     ▼
+[ 1. In-Memory Cache (RAM) ] ── (Hit) ──► Re-evaluate Boost Tiers ──► Return (< 1ms)
+     │ (Miss)
+     ▼
+[ 2. Supabase Global Cache ] ── (Hit: < 7 Days) ──► Store in RAM ──► Return (~50ms)
+     │ (Miss / Stale >= 7 Days)
+     ▼
+[ 3. Live VirusTotal API v3 ] ──► Store in Supabase & RAM ──► Return (5-12s)
+```
+
+1. **In-Memory Cache (`memory_cache`)**:
+   * Stored in process memory for zero-latency lookups on recently scanned URLs.
+2. **Supabase Database Cache (`public.url_analysis` joined with `public.url`)**:
+   * Anchored globally under `sms_id = 'CACHE_SMS'`.
+   * **7-Day Freshness Window**: Cached records older than 7 days (`timedelta(days=7)`) expire and trigger a fresh scan.
+   * **Latest Scan Prioritization**: Database lookups query with `.order("created_at", desc=True).limit(1)` to ensure newly updated threat definitions take priority.
+3. **Dynamic Score Recalculation ([`recalculate_cached_url_score`](file:///c:/Users/Soon1/OneDrive/Desktop/Model-API%20testing/app/scanner.py))**:
+   * Whenever a cached scan is retrieved (from RAM or Supabase), its raw engine detections are re-evaluated against the latest consensus boost rules dynamically. This guarantees that updated security policies apply instantly without needing to purge or invalidate existing cached rows.
+
+---
+
+### B. Live VirusTotal API v3 Pipeline
+
+When a URL misses the cache, the backend processes it asynchronously using `aiohttp`:
+
+1. **Base64 URL Identifier ([`get_url_id`](file:///c:/Users/Soon1/OneDrive/Desktop/Model-API%20testing/app/scanner.py))**:
+   * Standardizes the URL into a URL-safe Base64 string without trailing padding (`=`), as required by VirusTotal API v3:
+     ```python
+     url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
+     ```
+2. **Instant Report Retrieval (`GET /api/v3/urls/{url_id}`)**:
+   * Checks whether VirusTotal already has an existing analysis report from other global scanners. If HTTP 200 is returned, the engine extracts `last_analysis_results` immediately.
+3. **On-Demand Scan Submission & Polling (`POST /api/v3/urls` + `GET /api/v3/analyses/{scan_id}`)**:
+   * If no pre-existing report is found, the URL is submitted for on-demand analysis.
+   * The backend polls `GET /api/v3/analyses/{scan_id}` with exponential backoff (up to 15 attempts, 2-second interval) until `status == "completed"`.
+4. **Non-Blocking Pending Fallback**:
+   * If polling takes too long or VirusTotal is under heavy queue load, the endpoint returns `"verdict": "pending"` with `"score": null` instead of failing or timing out. This allows the SMS ensemble to dynamically rebalance weights across the text DL ($66.7\%$) and ML ($33.3\%$) layers without blocking the mobile user.
+
+---
+
+### C. Weighted Threat Scoring Algorithm
+
+Rather than counting vendor detections as equal votes, KwagoBackend normalizes engine categories and weights vendors by enterprise credibility:
+
+#### 1. Engine Category Normalization
+Each antivirus vendor returns a verdict category that maps to a baseline threat value:
+
+| Category | Normalized Value | Description |
+| :--- | :--- | :--- |
+| **`malicious`** | `1.0` | Confirmed malware, phishing, or scam domain |
+| **`phishing`** | `0.8` | Credential harvesting / brand impersonation |
+| **`suspicious`** | `0.5` | Suspicious redirection, newly registered domain |
+| **`type-unsupported`** | `0.1` | Specialized protocol / uncommon TLD |
+| **`timeout`** | `0.05` | Scanner request timed out |
+| **`harmless` / `undetected`** | `0.0` | Clean domain / no threat identified |
+
+#### 2. Security Vendor Weights ([`source_weights.csv`](file:///c:/Users/Soon1/OneDrive/Desktop/Model-API%20testing/app/source_weights.csv))
+Reputable enterprise security engines have higher voting weights. Unlisted engines default to a weight of `0.15`:
+
+| Vendor Engine | Weight | Notes / Specialization |
+| :--- | :--- | :--- |
+| **VirusTotal Baseline** | `1.00` | Aggregator baseline |
+| **Microsoft** | `0.95` | Global telemetry and Defender threat intelligence |
+| **Kaspersky** | `0.90` | High accuracy, aggressive heuristic detection |
+| **CrowdStrike** | `0.90` | Enterprise EDR intelligence |
+| **ESET / TrendMicro / Forcepoint / Google Safe Browsing** | `0.85` | Specialized web protection & URL categorization |
+| **Bitdefender / Symantec** | `0.80` | High-reputation enterprise antivirus |
+| **McAfee / Sophos** | `0.75` | Enterprise endpoint intelligence |
+| **Avast / Avira** | `0.70` | Consumer threat intelligence |
+| **Malwarebytes / Tencent / Fortinet** | `0.60 - 0.65` | APAC coverage & firewall intelligence |
+| **Default (Unlisted Engines)** | `0.15` | Baseline weight for secondary engines |
+
+#### 3. Base Normalized Score Formula
+$$\text{Normalized Score} = \frac{\sum_{i=1}^{N} \left(\text{Category Score}_i \times \text{Weight}_i\right)}{\sum_{i=1}^{N} \text{Weight}_i}$$
+
+---
+
+### D. Vendor Consensus Boost Rules (Dilution Protection)
+
+In standard weighted averages, a URL flagged by 20+ vendors can have its threat score diluted down to `~0.50` if 50+ secondary engines report `undetected`. KwagoBackend enforces **Vendor Consensus Boost Tiers** to eliminate false-confidence dilution:
+
+| Flagged Vendors Condition | Boosted Threat Score ($S_{\text{URL}}$) | Applied URL Verdict |
+| :--- | :--- | :--- |
+| **$\ge 15$ Malicious Vendors** | **`1.00`** *(Maximum Threat)* | `malicious` |
+| **$\ge 10$ Malicious Vendors** | **`0.95`** | `malicious` |
+| **$\ge 5$ Malicious Vendors** | **`0.85`** | `malicious` |
+| **$\ge 3$ Malicious Vendors** | **`0.75`** | `malicious` |
+| **Trusted Vendor (Weight $\ge 0.5$) OR $\ge 2$ Malicious** | **`0.65`** | `malicious` |
+| **$1$ Malicious Vendor** | **`0.45`** | `malicious` |
+| **$\ge 2$ Suspicious Vendors** | **`0.40`** | `suspicious` |
+| **$1$ Suspicious Vendor** | **`0.25`** | `suspicious` |
+
+---
+
+### E. URL Verdict Thresholds
+
+| Final URL Threat Score ($S_{\text{URL}}$) | Verdict | Risk Assessment |
+| :--- | :--- | :--- |
+| **$S_{\text{URL}} \ge 0.45$** | **`malicious`** | Confirmed phishing, malware, or credential harvesting link. |
+| **$0.20 \le S_{\text{URL}} < 0.45$** | **`suspicious`** | Domain exhibits deceptive characteristics or single-engine warning. |
+| **$S_{\text{URL}} < 0.20$** | **`benign`** | Verified clean across all security vendor engines. |
+| **Uncompleted / Timeout** | **`pending`** | Scan pending completion; safety cannot be guaranteed. |
+
+---
+
+### F. Multi-Layer Ensemble Integration & Clean Link Mitigation
+
+The URL analysis score directly influences the overall SMS smishing classification:
+
+1. **Standard Completed Scan (Case 3A)**:
+   $$S = (0.50 \times \text{DL}) + (0.25 \times \text{URL}) + (0.25 \times \text{ML})$$
+2. **Clean URL Mitigation**:
+   * If message text exhibits smishing cues (e.g. promotional wording or urgency where $\text{DL} = 0.55$, $\text{ML} = 0.40$), but the link is verified **Clean** ($S_{\text{URL}} = 0.0$), the combined score drops below $0.50$ (**`Safe`**).
+   * The explanation synthesizes this explicitly:
+     > *"Although message text exhibits smishing cues, the overall message is verified as Safe because the embedded web link was verified clean."*
+3. **Malicious URL Escalation**:
+   * If the URL is confirmed `malicious` ($S_{\text{URL}} \ge 0.85$), the overall message escalates directly to **`Harmful`**, citing the specific flagging antivirus vendors (e.g. *"detected by Fortinet, Symantec"*).
+4. **Pending URL Caution**:
+   * If the URL is `pending`, the ensemble safely recalculates over text layers ($66.7\%$ DL / $33.3\%$ ML) and appends:
+     > *"Exercise caution: this message contains a web link ({url}) that has not been verified by online threat intelligence yet, so its safety cannot be guaranteed."*
+
+---
+
+### G. Client Offline Threat Shield Synchronization
+
+Every newly evaluated URL is stored in Supabase with host normalization (`public.url` and `public.url_analysis`). Mobile clients and local VPN filters can incrementally synchronize these cached threat definitions:
+
+* **Endpoint**: `GET /url-reputations?since_timestamp=<epoch_millis>`
+* Returns verified malicious and suspicious URLs, hostnames, and threat scores so mobile clients can block them offline or at the DNS level.
+
+---
+
+## 3. Folder Structure
 
 ```text
 KwagoBackend/
@@ -77,7 +222,7 @@ KwagoBackend/
 
 ---
 
-## 3. Setup & Environment Configuration
+## 4. Setup & Environment Configuration
 
 ### 1. Create & Activate Virtual Environment
 ```bash
@@ -103,7 +248,7 @@ SUPABASE_SECRET_KEY=your_supabase_secret_key
 
 ---
 
-## 4. Running the Server
+## 5. Running the Server
 
 Start the application with Uvicorn:
 ```bash
@@ -120,7 +265,7 @@ Interactive API documentation will be available at:
 
 ---
 
-## 5. API Reference
+## 6. API Reference
 
 All protected endpoints require the HTTP Authorization Header:
 `Authorization: Bearer <KWAGO_API_KEY>`
