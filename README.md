@@ -18,9 +18,9 @@ KwagoBackend combines three distinct threat detection layers to determine an ove
 
 | Case Scenario | Active Layers & Weights | Ensemble Formula |
 | :--- | :--- | :--- |
-| **Case 1: No Web Link** | 66.7% CNN DL + 33.3% Local ML | $S = \left(\frac{2}{3} \times \text{DL}\right) + \left(\frac{1}{3} \times \text{ML}\right)$ |
-| **Case 2: Web Link Present, but Scan Pending / Unavailable** | 66.7% CNN DL + 33.3% Local ML *(+ Caution Warning Appended)* | $S = \left(\frac{2}{3} \times \text{DL}\right) + \left(\frac{1}{3} \times \text{ML}\right)$ |
-| **Case 3: Web Link Present & Scan Completed** | 50% CNN DL + 25% URL Scan + 25% Local ML | $S = (0.50 \times \text{DL}) + (0.25 \times \text{URL}) + (0.25 \times \text{ML})$ |
+| **Case 1: No Web Link** | 50% Local ML + 50% CNN DL | $S = (0.50 \times \text{ML}) + (0.50 \times \text{DL})$ |
+| **Case 2: Web Link Present, but Scan Pending / Unavailable** | 50% Local ML + 50% CNN DL *(+ Caution Warning Appended)* | $S = (0.50 \times \text{ML}) + (0.50 \times \text{DL})$ |
+| **Case 3: Web Link Present & Scan Completed** | 50% Local ML + 25% CNN DL + 25% URL Scan | $S = (0.50 \times \text{ML}) + (0.25 \times \text{DL}) + (0.25 \times \text{URL})$ |
 
 ---
 
@@ -106,7 +106,7 @@ When a URL misses the cache, the backend processes it asynchronously using `aioh
    * If no pre-existing report is found, the URL is submitted for on-demand analysis.
    * The backend polls `GET /api/v3/analyses/{scan_id}` with exponential backoff (up to 15 attempts, 2-second interval) until `status == "completed"`.
 4. **Non-Blocking Pending Fallback**:
-   * If polling takes too long or VirusTotal is under heavy queue load, the endpoint returns `"verdict": "pending"` with `"score": null` instead of failing or timing out. This allows the SMS ensemble to dynamically rebalance weights across the text DL ($66.7\%$) and ML ($33.3\%$) layers without blocking the mobile user.
+   * If polling takes too long or VirusTotal is under heavy queue load, the endpoint returns `"verdict": "pending"` with `"score": null` instead of failing or timing out. This allows the SMS ensemble to dynamically rebalance weights equally across the text ML ($50\%$) and DL ($50\%$) layers without blocking the mobile user.
 
 ---
 
@@ -180,7 +180,7 @@ In standard weighted averages, a URL flagged by 20+ vendors can have its threat 
 The URL analysis score directly influences the overall SMS smishing classification:
 
 1. **Standard Completed Scan (Case 3A)**:
-   $$S = (0.50 \times \text{DL}) + (0.25 \times \text{URL}) + (0.25 \times \text{ML})$$
+   $$S = (0.50 \times \text{ML}) + (0.25 \times \text{DL}) + (0.25 \times \text{URL})$$
 2. **Clean URL Mitigation**:
    * If message text exhibits smishing cues (e.g. promotional wording or urgency where $\text{DL} = 0.70$, $\text{ML} = 0.50$), but the link is verified **Clean** ($S_{\text{URL}} = 0.0$), the combined score drops below $0.65$ (**`Safe`**).
    * The explanation synthesizes this explicitly:
@@ -188,7 +188,7 @@ The URL analysis score directly influences the overall SMS smishing classificati
 3. **Malicious URL Escalation**:
    * If the URL is confirmed `malicious` ($S_{\text{URL}} \ge 0.85$), the overall message escalates directly to **`Harmful`**, citing the specific flagging antivirus vendors (e.g. *"detected by Fortinet, Symantec"*).
 4. **Pending URL Caution**:
-   * If the URL is `pending`, the ensemble safely recalculates over text layers ($66.7\%$ DL / $33.3\%$ ML) and appends:
+   * If the URL is `pending`, the ensemble safely recalculates over text layers ($50\%$ ML / $50\%$ DL) and appends:
      > *"Exercise caution: this message contains a web link ({url}) that has not been verified by online threat intelligence yet, so its safety cannot be guaranteed."*
 
 ---

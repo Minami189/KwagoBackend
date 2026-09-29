@@ -160,10 +160,10 @@ The mathematical boundaries were evaluated across all **$4,474$ real SMS message
 
 | Case Scenario | Active Layers & Weights | Linear Score Formula | Safe ($S < 0.65$) | Suspicious ($0.65 \le S < 0.85$) | Harmful ($S \ge 0.85$) |
 | :--- | :---: | :--- | :--- | :--- | :--- |
-| **Case 1: Text Only** | $66.7\%$ DL / $33.3\%$ ML | $S = \frac{2}{3}\text{DL} + \frac{1}{3}\text{ML}$ | $2\,\text{DL} + \text{ML} < 1.95$ | $1.95 \le 2\,\text{DL} + \text{ML} < 2.55$ | $2\,\text{DL} + \text{ML} \ge 2.55$ |
-| **Case 2: URL Pending** | $66.7\%$ DL / $33.3\%$ ML | $S = \frac{2}{3}\text{DL} + \frac{1}{3}\text{ML}$ | $2\,\text{DL} + \text{ML} < 1.95$ | $1.95 \le 2\,\text{DL} + \text{ML} < 2.55$ | $2\,\text{DL} + \text{ML} \ge 2.55$ |
-| **Case 3A: Clean URL** | $50\%$ DL / $25\%$ ML / $25\%$ URL | $S = 0.50\,\text{DL} + 0.25\,\text{ML}$ | $2\,\text{DL} + \text{ML} < 2.60$ | $2.60 \le 2\,\text{DL} + \text{ML} \le 3.00$ | **Unreachable** ($\max S = 0.75$) |
-| **Case 3B: Suspicious URL** | $50\%$ DL / $25\%$ ML / $25\%$ URL | Floor: $S \ge 0.65$ | None | Baseline ($0.65 \le S < 0.85$) | $2\,\text{DL} + \text{ML} \ge 3.40 - S_{\text{URL}}$ |
+| **Case 1: Text Only** | $50\%$ ML / $50\%$ DL | $S = 0.50\,\text{ML} + 0.50\,\text{DL}$ | $\text{ML} + \text{DL} < 1.30$ | $1.30 \le \text{ML} + \text{DL} < 1.70$ | $\text{ML} + \text{DL} \ge 1.70$ |
+| **Case 2: URL Pending** | $50\%$ ML / $50\%$ DL | $S = 0.50\,\text{ML} + 0.50\,\text{DL}$ | $\text{ML} + \text{DL} < 1.30$ | $1.30 \le \text{ML} + \text{DL} < 1.70$ | $\text{ML} + \text{DL} \ge 1.70$ |
+| **Case 3A: Clean URL** | $50\%$ ML / $25\%$ DL / $25\%$ URL | $S = 0.50\,\text{ML} + 0.25\,\text{DL}$ | $2\,\text{ML} + \text{DL} < 2.60$ | $2.60 \le 2\,\text{ML} + \text{DL} \le 3.00$ | **Unreachable** ($\max S = 0.75$) |
+| **Case 3B: Suspicious URL** | $50\%$ ML / $25\%$ DL / $25\%$ URL | Floor: $S \ge 0.65$ | None | Baseline ($0.65 \le S < 0.85$) | $2\,\text{ML} + \text{DL} + \text{URL} \ge 3.40$ |
 | **Case 3C: Malicious URL** | Override: $S \ge 0.85$ | Floor: $S \ge 0.85$ | None | None | **Automatic Override** |
 
 ---

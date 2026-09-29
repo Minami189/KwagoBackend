@@ -249,7 +249,7 @@ async def scan_sms_message(request: SmsScanRequest):
                 contributions=[]
             )
 
-        # 3. Synthesize Overall Verdict, Score, and Executive Summary Explanation (50% DL / 25% URL / 25% ML)
+        # 3. Synthesize Overall Verdict, Score, and Executive Summary Explanation (50% ML / 25% DL / 25% URL)
         overall_verdict, overall_score, overall_explanation = scanner.generate_overall_summary(
             message=message_to_scan,
             ml_confidence=float(ml_confidence_val),

@@ -204,18 +204,18 @@ def compute_ensemble_score(
 ) -> float:
     """
     Computes the ensemble classification score:
-    - Case 3A (URL present & completed): 50% DL / 25% URL / 25% ML
-    - Case 1B & 2B (No URL or pending URL scan): 66.7% DL (2/3) + 33.3% ML (1/3)
+    - Case 3A (URL present & completed): 50% ML / 25% DL / 25% URL
+    - Case 1B & 2B (No URL or pending URL scan): 50% ML / 50% DL
     """
     ml_val = ml_confidence / 100.0 if ml_confidence > 1.0 else ml_confidence
     dl_val = cnn_score / 100.0 if cnn_score > 1.0 else cnn_score
 
     if url_score is not None:
         u_val = url_score / 100.0 if url_score > 1.0 else url_score
-        score = (0.50 * dl_val) + (0.25 * u_val) + (0.25 * ml_val)
+        score = (0.50 * ml_val) + (0.25 * dl_val) + (0.25 * u_val)
     else:
-        # Re-normalize 66.7% DL (2/3) + 33.3% ML (1/3)
-        score = ((2.0 / 3.0) * dl_val) + ((1.0 / 3.0) * ml_val)
+        # Re-normalize 50% ML + 50% DL
+        score = (0.50 * ml_val) + (0.50 * dl_val)
 
     return round(score, 4)
 
