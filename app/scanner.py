@@ -7,7 +7,7 @@ import pickle
 import re
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import aiohttp
 import numpy as np
@@ -159,7 +159,7 @@ def format_verdict_explanation(
 def generate_cnn_explanation(message: str, cnn_score: float, has_url: bool = True) -> Tuple[str, str]:
     """
     Analyzes message keywords and CNN model probability to output a precise, human-readable explanation sentence.
-    Thresholds: Safe (< 0.65), Suspicious/Spam (0.65 - 0.85), Harmful (>= 0.85).
+    Thresholds: Benign (< 0.65), Suspicious (0.65 - 0.85), Harmful (>= 0.85).
     If has_url is False, explanation will never mention web links.
     """
     import re
@@ -177,7 +177,7 @@ def generate_cnn_explanation(message: str, cnn_score: float, has_url: bool = Tru
     link_match = re.search(link_pattern, msg_lower)
 
     if cnn_score >= 0.65:
-        verdict = "harmful" if cnn_score >= 0.85 else "spam"
+        verdict = "harmful" if cnn_score >= 0.85 else "suspicious"
         if reward_match and action_match:
             explanation = "Promotes unsolicited monetary bonuses and app download incentives common in smishing scams."
         elif reward_match:
@@ -257,7 +257,7 @@ def generate_overall_summary(
         cnn_reason_lower = cnn_reason_lower[:-1]
 
     # Label layers
-    ml_label = "Harmful" if ml_pct >= 85 else ("Suspicious" if ml_pct >= 65 else "Safe")
+    ml_label = "Harmful" if ml_pct >= 85 else ("Suspicious" if ml_pct >= 65 else "Benign")
 
     # 1. Overall Verdict Determination
     if final_score >= 0.85 or url_verdict == "malicious":
@@ -919,23 +919,100 @@ async def save_sms_message_to_db(sender_number: str, message_content: str, is_pr
     return None
 
 
-async def save_analysis_result_to_db(sms_id: str, ml_prediction: str, ml_confidence: float, dl_prediction: str, dl_confidence: float):
+def normalize_ml_prediction(ml_prediction: Optional[str] = None, ml_confidence: Optional[float] = None) -> str:
     """
-    Insert the CNN prediction and confidence levels into public.analysis_result linked to the given sms_id.
+    Normalizes local ML model verdict to standard classes: 'benign', 'suspicious', or 'harmful'.
+    If ml_prediction is not provided or ambiguous, infers it from ml_confidence.
+    """
+    if ml_prediction:
+        clean = ml_prediction.strip().lower()
+        if clean in ["harmful", "smishing", "malicious", "phishing", "high"]:
+            return "harmful"
+        elif clean in ["suspicious", "spam", "medium"]:
+            return "suspicious"
+        elif clean in ["benign", "safe", "legitimate", "clean", "low"]:
+            return "benign"
+
+    # Infer from ml_confidence if available
+    if ml_confidence is not None:
+        conf = ml_confidence / 100.0 if ml_confidence > 1.0 else ml_confidence
+        if conf >= 0.85:
+            return "harmful"
+        elif conf >= 0.65:
+            return "suspicious"
+        else:
+            return "benign"
+
+    return "benign"
+
+
+async def save_analysis_result_to_db(
+    sms_id: str,
+    ml_prediction: str,
+    ml_confidence: float,
+    dl_prediction: str,
+    dl_confidence: float,
+    url_score: Optional[float] = None,
+    ensemble_score: Optional[float] = None,
+    ensemble_verdict: Optional[str] = None
+):
+    """
+    Insert the ML, CNN, URL, and ensemble prediction and confidence levels into public.analysis_result linked to the given sms_id.
+    Ensures ml_prediction, dl_prediction, and ensemble_verdict are strictly normalized to ('benign', 'suspicious', 'harmful').
     """
     if not supabase:
         return
     try:
         import uuid
         analysis_id = str(uuid.uuid4())
-        supabase.table("analysis_result").insert({
+
+        # Normalize ML prediction
+        norm_ml = normalize_ml_prediction(ml_prediction, ml_confidence)
+
+        # Normalize DL prediction
+        dl_clean = (dl_prediction or "").strip().lower()
+        if dl_clean in ["harmful", "malicious", "smishing", "high"]:
+            norm_dl = "harmful"
+        elif dl_clean in ["suspicious", "spam", "medium"]:
+            norm_dl = "suspicious"
+        elif dl_clean in ["benign", "safe", "clean", "low"]:
+            norm_dl = "benign"
+        else:
+            conf_dl = dl_confidence / 100.0 if dl_confidence > 1.0 else dl_confidence
+            norm_dl = "harmful" if conf_dl >= 0.85 else ("suspicious" if conf_dl >= 0.65 else "benign")
+
+        # Normalize Ensemble verdict based on thresholds or input
+        if ensemble_verdict:
+            ev_clean = ensemble_verdict.strip().lower()
+            if ev_clean in ["harmful", "malicious", "smishing", "high"]:
+                norm_ev = "harmful"
+            elif ev_clean in ["suspicious", "spam", "medium"]:
+                norm_ev = "suspicious"
+            else:
+                norm_ev = "benign"
+        elif ensemble_score is not None:
+            if ensemble_score >= 0.85:
+                norm_ev = "harmful"
+            elif ensemble_score >= 0.65:
+                norm_ev = "suspicious"
+            else:
+                norm_ev = "benign"
+        else:
+            norm_ev = None
+
+        record = {
             "analysis_id": analysis_id,
             "sms_id": sms_id,
-            "ml_prediction": ml_prediction,
+            "ml_prediction": norm_ml,
             "ml_confidence": ml_confidence,
-            "dl_prediction": dl_prediction,
-            "dl_confidence": dl_confidence
-        }).execute()
+            "dl_prediction": norm_dl,
+            "dl_confidence": dl_confidence,
+            "url_score": float(url_score) if url_score is not None else None,
+            "ensemble_score": float(ensemble_score) if ensemble_score is not None else None,
+            "ensemble_verdict": norm_ev
+        }
+
+        supabase.table("analysis_result").insert(record).execute()
     except Exception as e:
         print(f"Failed to save analysis result for sms_id {sms_id}: {e}")
 

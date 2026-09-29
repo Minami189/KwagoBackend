@@ -274,13 +274,19 @@ async def scan_sms_message(request: SmsScanRequest):
             # Save SMS to public.sms_message and retrieve key
             sms_id = await scanner.save_sms_message_to_db(request.sender, message_to_scan, 0)
             if sms_id:
-                # Save CNN and local ML model predictions to public.analysis_result
+                # Save CNN, local ML, URL, and Ensemble predictions to public.analysis_result
+                norm_ml_prediction = scanner.normalize_ml_prediction(request.ml_prediction, ml_confidence_val)
+                extracted_url_score = url_res_dict.get("score") if (request.has_url and request.extracted_url and url_res_dict) else None
+
                 await scanner.save_analysis_result_to_db(
                     sms_id=sms_id,
-                    ml_prediction=request.ml_prediction or "unknown",
+                    ml_prediction=norm_ml_prediction,
                     ml_confidence=float(ml_confidence_val),
                     dl_prediction=cnn_verdict,
-                    dl_confidence=float(cnn_probability)
+                    dl_confidence=float(cnn_probability),
+                    url_score=float(extracted_url_score) if extracted_url_score is not None else None,
+                    ensemble_score=float(overall_score),
+                    ensemble_verdict=str(overall_verdict).lower()
                 )
 
                 # Store URL in database linked to the user sms_id if URL was present

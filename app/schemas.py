@@ -52,8 +52,8 @@ class SmsScanRequest(BaseModel):
     )
     ml_prediction: Optional[str] = Field(
         None,
-        description="The local ML model smishing verdict classification (suspicious/smishing/benign).",
-        json_schema_extra={"example": "smishing"}
+        description="The local ML model smishing verdict classification ('benign', 'suspicious', or 'harmful').",
+        json_schema_extra={"example": "suspicious"}
     )
     ml_confidence: Optional[float] = Field(
         0.0,
@@ -75,7 +75,7 @@ class SmsScanRequest(BaseModel):
 
 class CnnAnalysisResult(BaseModel):
     score: float = Field(..., description="CNN-BiGRU deep learning model threat/spam probability score (0.0 to 1.0).")
-    verdict: str = Field(..., description="CNN model verdict ('harmful', 'spam', or 'benign').")
+    verdict: str = Field(..., description="CNN model verdict ('benign', 'suspicious', or 'harmful').")
     explanation: Optional[str] = Field(None, description="Human-readable explanation of why the message content was flagged.")
 
 
