@@ -8,8 +8,8 @@ FastAPI backend for multi-layer SMS smishing classification, deep learning NLP a
 
 KwagoBackend combines three distinct threat detection layers to determine an overall classification score ($S$) and synthesize human-readable executive explanations for mobile users:
 
-1. **Local ML Layer (Random Forest + XGBoost)**: Mobile client pre-scan confidence score (`Safe`: $< 50\%$, `Suspicious`: $50\% - 85\%$, `Harmful`: $\ge 85\%$).
-2. **Server Deep Learning Layer (CNN-BiGRU ONNX Model)**: NLP analysis extracting linguistic urgency and scam phrasing (`Safe`: $< 50\%$, `Suspicious`: $50\% - 85\%$, `Harmful`: $\ge 85\%$).
+1. **Local ML Layer (Random Forest + XGBoost)**: Mobile client pre-scan confidence score (`Safe`: $< 65\%$, `Suspicious`: $65\% - 85\%$, `Harmful`: $\ge 85\%$).
+2. **Server Deep Learning Layer (CNN-BiGRU ONNX Model)**: NLP analysis extracting linguistic urgency and scam phrasing (`Safe`: $< 65\%$, `Suspicious`: $65\% - 85\%$, `Harmful`: $\ge 85\%$).
 3. **URL Threat Scanner Layer (VirusTotal API)**: Weighted threat reputation analysis over security vendor engines.
 
 ---
@@ -28,9 +28,11 @@ KwagoBackend combines three distinct threat detection layers to determine an ove
 
 | Verdict | Probability Score Range ($S$) | Behavior | Status Badge / UI Color | System Actions |
 | :--- | :--- | :--- | :--- | :--- |
-| **Safe** | **Below 50% ($S < 0.50$)** | No threat or scam patterns detected. | Green (`#26CE6B`) | Allowed normally; bypassed from database logging. |
-| **Suspicious** | **50% to 85% ($0.50 \le S < 0.85$)** | Unsolicited, promotional, or high-urgency content. | Orange (`#FFF07048`) | Caution alert shown; logged to DB if `allow_save = true`. |
+| **Safe** | **Below 65% ($S < 0.65$)** | No threat or scam patterns detected. | Green (`#26CE6B`) | Allowed normally; bypassed from database logging. |
+| **Suspicious** | **65% to 85% ($0.65 \le S < 0.85$)** | Unsolicited, promotional, or high-urgency content. | Orange (`#FFF07048`) | Caution alert shown; logged to DB if `allow_save = true`. |
 | **Harmful** | **Above 85% ($S \ge 0.85$)** | High risk SMS scam / credential phishing. | Red (`#FF4D55`) | Threat warning generated; logged to DB if `allow_save = true`. |
+
+> Detailed mathematical derivations, tipping points, and dataset evaluations on `sms_cleaned.csv` are documented in [optimal_threshold_calculation.md](file:///c:/Users/jerma/OneDrive/Desktop/KwagoBackend/optimal_threshold_calculation.md).
 
 ---
 
@@ -180,7 +182,7 @@ The URL analysis score directly influences the overall SMS smishing classificati
 1. **Standard Completed Scan (Case 3A)**:
    $$S = (0.50 \times \text{DL}) + (0.25 \times \text{URL}) + (0.25 \times \text{ML})$$
 2. **Clean URL Mitigation**:
-   * If message text exhibits smishing cues (e.g. promotional wording or urgency where $\text{DL} = 0.55$, $\text{ML} = 0.40$), but the link is verified **Clean** ($S_{\text{URL}} = 0.0$), the combined score drops below $0.50$ (**`Safe`**).
+   * If message text exhibits smishing cues (e.g. promotional wording or urgency where $\text{DL} = 0.70$, $\text{ML} = 0.50$), but the link is verified **Clean** ($S_{\text{URL}} = 0.0$), the combined score drops below $0.65$ (**`Safe`**).
    * The explanation synthesizes this explicitly:
      > *"Although message text exhibits smishing cues, the overall message is verified as Safe because the embedded web link was verified clean."*
 3. **Malicious URL Escalation**:

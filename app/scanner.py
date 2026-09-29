@@ -159,7 +159,7 @@ def format_verdict_explanation(
 def generate_cnn_explanation(message: str, cnn_score: float, has_url: bool = True) -> Tuple[str, str]:
     """
     Analyzes message keywords and CNN model probability to output a precise, human-readable explanation sentence.
-    Thresholds: Safe (< 0.50), Suspicious/Spam (0.50 - 0.85), Harmful (>= 0.85).
+    Thresholds: Safe (< 0.65), Suspicious/Spam (0.65 - 0.85), Harmful (>= 0.85).
     If has_url is False, explanation will never mention web links.
     """
     import re
@@ -176,7 +176,7 @@ def generate_cnn_explanation(message: str, cnn_score: float, has_url: bool = Tru
     action_match = re.search(action_download_pattern, msg_lower)
     link_match = re.search(link_pattern, msg_lower)
 
-    if cnn_score >= 0.50:
+    if cnn_score >= 0.65:
         verdict = "harmful" if cnn_score >= 0.85 else "spam"
         if reward_match and action_match:
             explanation = "Promotes unsolicited monetary bonuses and app download incentives common in smishing scams."
@@ -231,8 +231,8 @@ def generate_overall_summary(
     Synthesizes a deep multi-layer overall threat verdict, overall threat score, and executive summary explanation
     comparing findings across the Local ML layer, Deep Learning layer, and URL Threat Scanner layer.
     Verdict Thresholds:
-    - Safe: Below 50% (< 0.50)
-    - Suspicious: 50% to 85% (0.50 - 0.85)
+    - Safe: Below 65% (< 0.65)
+    - Suspicious: 65% to 85% (0.65 - 0.85)
     - Harmful: Above 85% (>= 0.85)
     """
     import re
@@ -257,17 +257,17 @@ def generate_overall_summary(
         cnn_reason_lower = cnn_reason_lower[:-1]
 
     # Label layers
-    ml_label = "Harmful" if ml_pct >= 85 else ("Suspicious" if ml_pct >= 50 else "Safe")
+    ml_label = "Harmful" if ml_pct >= 85 else ("Suspicious" if ml_pct >= 65 else "Safe")
 
     # 1. Overall Verdict Determination
     if final_score >= 0.85 or url_verdict == "malicious":
         overall_verdict = "Harmful"
         if url_verdict == "malicious" and final_score < 0.85:
             final_score = max(final_score, 0.85)
-    elif final_score >= 0.50 or url_verdict == "suspicious":
+    elif final_score >= 0.65 or url_verdict == "suspicious":
         overall_verdict = "Suspicious"
-        if url_verdict == "suspicious" and final_score < 0.50:
-            final_score = max(final_score, 0.50)
+        if url_verdict == "suspicious" and final_score < 0.65:
+            final_score = max(final_score, 0.65)
     else:
         overall_verdict = "Safe"
 
@@ -276,15 +276,15 @@ def generate_overall_summary(
     # --- CATEGORY 1: SAFE OVERALL VERDICT ---
     if overall_verdict == "Safe":
         if has_url and url_verdict in ["benign", "clean"]:
-            if ml_pct >= 50 and dl_pct < 50:
+            if ml_pct >= 65 and dl_pct < 65:
                 explanation_parts.append(
                     f"Although the local ML layer marked this as {ml_label.lower()}, the Deep Learning layer evaluated the message text as safe and the embedded web link was verified clean, making the overall message Safe."
                 )
-            elif ml_pct < 50 and dl_pct >= 50:
+            elif ml_pct < 65 and dl_pct >= 65:
                 explanation_parts.append(
                     f"Although the Deep Learning layer detected potential smishing cues ({cnn_reason_lower}), the local ML layer marked it as safe and the embedded web link was verified clean, making the overall message Safe."
                 )
-            elif ml_pct >= 50 and dl_pct >= 50:
+            elif ml_pct >= 65 and dl_pct >= 65:
                 explanation_parts.append(
                     "Although message text exhibits smishing cues, the overall message is verified as Safe because the embedded web link was verified clean."
                 )
@@ -294,11 +294,11 @@ def generate_overall_summary(
                 )
         else:
             # No URL or URL pending
-            if ml_pct >= 50 and dl_pct < 50:
+            if ml_pct >= 65 and dl_pct < 65:
                 explanation_parts.append(
                     f"Although the local ML layer marked this as {ml_label.lower()}, the Deep Learning layer evaluated the message text as safe, so the overall message is verified as Safe."
                 )
-            elif ml_pct < 50 and dl_pct >= 50:
+            elif ml_pct < 65 and dl_pct >= 65:
                 explanation_parts.append(
                     f"Although the Deep Learning layer detected potential smishing cues ({cnn_reason_lower}), the local ML layer marked it as safe, so the overall message is verified as Safe."
                 )
@@ -309,7 +309,7 @@ def generate_overall_summary(
 
     # --- CATEGORY 2: SUSPICIOUS OVERALL VERDICT ---
     elif overall_verdict == "Suspicious":
-        if ml_pct >= 50 and dl_pct < 50:
+        if ml_pct >= 65 and dl_pct < 65:
             if has_url and url_verdict in ["benign", "clean"]:
                 explanation_parts.append(
                     f"Although the Deep Learning layer evaluated the text as safe and the web link was clean, the local ML layer flagged this as {ml_label.lower()}, keeping the overall risk level at Suspicious."
@@ -318,7 +318,7 @@ def generate_overall_summary(
                 explanation_parts.append(
                     f"Although the Deep Learning model evaluated the message text as safe, the local ML layer flagged this as {ml_label.lower()}, resulting in an overall Suspicious classification."
                 )
-        elif ml_pct < 50 and dl_pct >= 50:
+        elif ml_pct < 65 and dl_pct >= 65:
             if has_url and url_verdict in ["benign", "clean"]:
                 explanation_parts.append(
                     f"Though the local ML layer marked this as safe and the embedded web link was clean, the Deep Learning layer detected smishing risk because it {cnn_reason_lower}, classifying the overall message as Suspicious."
@@ -327,11 +327,11 @@ def generate_overall_summary(
                 explanation_parts.append(
                     f"Though the local ML layer marked this as safe, the Deep Learning layer detected smishing risk because it {cnn_reason_lower}, classifying the overall message as Suspicious."
                 )
-        elif ml_pct >= 50 and dl_pct >= 50:
+        elif ml_pct >= 65 and dl_pct >= 65:
             explanation_parts.append(
                 f"Both classification layers indicated smishing risk as the message {cnn_reason_lower}, resulting in an overall Suspicious verdict."
             )
-        else: # ml_pct < 50 and dl_pct < 50, but URL is suspicious
+        else: # ml_pct < 65 and dl_pct < 65, but URL is suspicious
             explanation_parts.append(
                 f"Both local ML and Deep Learning layers verified the message text as safe, but the embedded web link ({extracted_url}) has an unverified or suspicious reputation, making the overall verdict Suspicious."
             )
@@ -340,15 +340,15 @@ def generate_overall_summary(
     else: # overall_verdict == "Harmful"
         if url_verdict == "malicious":
             flagged_by = f" (detected by {', '.join(url_contributions[:2])})" if url_contributions else ""
-            if ml_pct < 50 and dl_pct < 50:
+            if ml_pct < 65 and dl_pct < 65:
                 explanation_parts.append(
                     f"Both local ML and Deep Learning layers verified the message text as safe, but the embedded web link ({extracted_url}) was confirmed as a high-risk malicious phishing site{flagged_by}."
                 )
-            elif ml_pct < 50 and dl_pct >= 50:
+            elif ml_pct < 65 and dl_pct >= 65:
                 explanation_parts.append(
                     f"Though the local ML layer marked this as safe, the Deep Learning layer detected smishing risk because it {cnn_reason_lower}. Furthermore, the embedded web link ({extracted_url}) was confirmed as a high-risk malicious phishing site{flagged_by}."
                 )
-            elif ml_pct >= 50 and dl_pct < 50:
+            elif ml_pct >= 65 and dl_pct < 65:
                 explanation_parts.append(
                     f"Although the local ML layer flagged this as {ml_label.lower()} and the Deep Learning model evaluated text as safe, the embedded web link ({extracted_url}) was confirmed as a high-risk malicious phishing site{flagged_by}."
                 )
@@ -358,11 +358,11 @@ def generate_overall_summary(
                 )
         else:
             # Text driven Harmful
-            if ml_pct < 50 and dl_pct >= 85:
+            if ml_pct < 65 and dl_pct >= 85:
                 explanation_parts.append(
                     f"Though the local ML layer marked this as safe, the Deep Learning layer detected High Risk because it {cnn_reason_lower}."
                 )
-            elif ml_pct >= 85 and dl_pct < 50:
+            elif ml_pct >= 85 and dl_pct < 65:
                 explanation_parts.append(
                     f"Although the local ML layer flagged High Risk, the Deep Learning model evaluated the message text as safe, but high local ML risk keeps the overall verdict as Harmful."
                 )
@@ -382,8 +382,6 @@ def generate_overall_summary(
         )
 
     overall_explanation = " ".join(explanation_parts)
-
-    return overall_verdict, final_score, overall_explanation
 
     return overall_verdict, final_score, overall_explanation
 
