@@ -74,8 +74,8 @@ Incoming URL
 [ 1. In-Memory Cache (RAM) ] ── (Hit) ──► Re-evaluate Boost Tiers ──► Return (< 1ms)
      │ (Miss)
      ▼
-[ 2. Supabase Global Cache ] ── (Hit: < 7 Days) ──► Store in RAM ──► Return (~50ms)
-     │ (Miss / Stale >= 7 Days)
+[ 2. Supabase Global Cache ] ── (Hit) ──► Store in RAM ──► Return (~50ms)
+     │ (Miss)
      ▼
 [ 3. Live VirusTotal API v3 ] ──► Store in Supabase & RAM ──► Return (5-12s)
 ```
@@ -84,7 +84,7 @@ Incoming URL
    * Stored in process memory for zero-latency lookups on recently scanned URLs.
 2. **Supabase Database Cache (`public.url_analysis` joined with `public.url`)**:
    * Anchored globally under `sms_id = 'CACHE_SMS'`.
-   * **7-Day Freshness Window**: Cached records older than 7 days (`timedelta(days=7)`) expire and trigger a fresh scan.
+   * **Permanent Retention (No Automatic Deletion)**: Analyzed URLs and threat reputation entries are preserved permanently to continuously expand the threat intelligence dataset and avoid redundant VirusTotal quota consumption.
    * **Latest Scan Prioritization**: Database lookups query with `.order("created_at", desc=True).limit(1)` to ensure newly updated threat definitions take priority.
 3. **Dynamic Score Recalculation ([`recalculate_cached_url_score`](file:///c:/Users/Soon1/OneDrive/Desktop/Model-API%20testing/app/scanner.py))**:
    * Whenever a cached scan is retrieved (from RAM or Supabase), its raw engine detections are re-evaluated against the latest consensus boost rules dynamically. This guarantees that updated security policies apply instantly without needing to purge or invalidate existing cached rows.

@@ -64,12 +64,6 @@ async def startup_event():
     
     # Open database connection pool
     await scanner.init_db()
-    
-    # Run automatic 7-day data pruning on startup
-    try:
-        await scanner.prune_expired_records_db()
-    except Exception as e:
-        print(f"Warning: Database pruning on startup failed: {e}")
 
 
 
@@ -229,6 +223,7 @@ async def scan_sms_message(request: SmsScanRequest):
 
         # 2. VirusTotal URL Threat Scoring with dual-layer caching (in-memory + database)
         url_res_dict = {}
+        is_url_cache_hit = False
         if request.has_url and request.extracted_url:
             primary_url = request.extracted_url.strip()
             
@@ -236,17 +231,11 @@ async def scan_sms_message(request: SmsScanRequest):
             cached_scan = await scanner.lookup_cached_url(primary_url)
             if cached_scan:
                 url_res_dict = cached_scan
+                is_url_cache_hit = True
             else:
                 # Cache miss: Run live query
                 url_res_dict = await scanner.analyze_sms_url(primary_url)
-                
-                # Store in database global cache (linked to CACHE_SMS)
-                await scanner.save_url_scan_to_db(
-                    url=primary_url,
-                    sms_id="CACHE_SMS",
-                    is_malicious=1 if url_res_dict.get("verdict") == "malicious" else 0,
-                    scan_result=url_res_dict
-                )
+                is_url_cache_hit = False
             
             url_res = UrlAnalysisResult(**url_res_dict)
         else:
@@ -270,16 +259,17 @@ async def scan_sms_message(request: SmsScanRequest):
         )
 
         # 4. Only save SMS logs and classification results if user allowed saving AND overall_score reaches 65% (0.65) threshold
+        saved_sms_id = None
         if request.allow_save and overall_score >= 0.65:
             # Save SMS to public.sms_message and retrieve key
-            sms_id = await scanner.save_sms_message_to_db(request.sender, message_to_scan, 0)
-            if sms_id:
+            saved_sms_id = await scanner.save_sms_message_to_db(request.sender, message_to_scan, 0)
+            if saved_sms_id:
                 # Save CNN, local ML, URL, and Ensemble predictions to public.analysis_result
                 norm_ml_prediction = scanner.normalize_ml_prediction(request.ml_prediction, ml_confidence_val)
                 extracted_url_score = url_res_dict.get("score") if (request.has_url and request.extracted_url and url_res_dict) else None
 
                 await scanner.save_analysis_result_to_db(
-                    sms_id=sms_id,
+                    sms_id=saved_sms_id,
                     ml_prediction=norm_ml_prediction,
                     ml_confidence=float(ml_confidence_val),
                     dl_prediction=cnn_verdict,
@@ -289,14 +279,23 @@ async def scan_sms_message(request: SmsScanRequest):
                     ensemble_verdict=str(overall_verdict).lower()
                 )
 
-                # Store URL in database linked to the user sms_id if URL was present
+                # Store URL in database linked exclusively to the user's sms_id (no CACHE_SMS)
                 if request.has_url and request.extracted_url and url_res_dict:
                     await scanner.save_url_scan_to_db(
                         url=request.extracted_url.strip(),
-                        sms_id=sms_id,
+                        sms_id=saved_sms_id,
                         is_malicious=1 if url_res_dict.get("verdict") == "malicious" else 0,
                         scan_result=url_res_dict
                     )
+
+        # If the URL was newly scanned (cache miss) and NOT saved under a user sms_id, save as CACHE_SMS
+        if request.has_url and request.extracted_url and url_res_dict and not is_url_cache_hit and not saved_sms_id:
+            await scanner.save_url_scan_to_db(
+                url=request.extracted_url.strip(),
+                sms_id="CACHE_SMS",
+                is_malicious=1 if url_res_dict.get("verdict") == "malicious" else 0,
+                scan_result=url_res_dict
+            )
 
         # 5. Automatically log to NTC report table if auto_report is enabled AND overall_score reaches suspicious/harmful threshold (>= 0.65)
         if request.auto_report and overall_score >= 0.65:

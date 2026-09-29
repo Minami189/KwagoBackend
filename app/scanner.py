@@ -812,24 +812,19 @@ async def lookup_cached_url(url: str) -> dict | None:
         response = supabase.table("url_analysis") \
             .select("is_malicious, scan_result, created_at, url!inner(full_url)") \
             .eq("url.full_url", url) \
-            .eq("sms_id", "CACHE_SMS") \
             .order("created_at", desc=True) \
             .limit(1) \
             .execute()
             
         if response.data:
             record = response.data[0]
-            created_at_str = record.get("created_at")
-            if created_at_str:
-                from datetime import datetime, timezone, timedelta
-                created_time = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                if datetime.now(timezone.utc) - created_time < timedelta(days=7):
-                    scan_data = json.loads(record["scan_result"])
-                    scan_data = recalculate_cached_url_score(scan_data)
-                    # Store updated score in memory cache
-                    memory_cache[url] = scan_data
-                    print(f"Database cache hit for URL: {url}")
-                    return scan_data
+            raw_scan = record.get("scan_result")
+            scan_data = raw_scan if isinstance(raw_scan, dict) else json.loads(raw_scan or "{}")
+            scan_data = recalculate_cached_url_score(scan_data)
+            # Store updated score in memory cache
+            memory_cache[url] = scan_data
+            print(f"Database cache hit for URL: {url}")
+            return scan_data
 
     except Exception as e:
         print(f"Database cache lookup error for {url}: {e}")
@@ -885,14 +880,14 @@ async def save_url_scan_to_db(url: str, sms_id: str, is_malicious: int, scan_res
             
         # 2. Insert the analysis record linked to this URL ID
         analysis_id = str(uuid.uuid4())
-        scan_result_str = json.dumps(scan_result)
+        scan_payload = scan_result if isinstance(scan_result, dict) else json.loads(scan_result or "{}")
         
         supabase.table("url_analysis").insert({
             "analysis_id": analysis_id,
             "sms_id": sms_id,
             "url_id": url_db_id,
             "is_malicious": is_malicious,
-            "scan_result": scan_result_str
+            "scan_result": scan_payload
         }).execute()
     except Exception as e:
         print(f"Failed to save URL scan to db for sms_id {sms_id}: {e}")
@@ -1123,27 +1118,9 @@ async def save_misclassification_report_to_db(
 
 async def prune_expired_records_db():
     """
-    Worker task to delete SMS messages and linked logs older than 7 days (168 hours).
+    Automatic deletion has been disabled to preserve URL threat intelligence and SMS records permanently.
     """
-    if not supabase:
-        return
-    try:
-        # Attempt to run SQL pruning via RPC function if defined
-        supabase.rpc("prune_expired_records").execute()
-        print("Database cache pruning RPC: Success.")
-    except Exception as e:
-        print(f"Database pruning RPC failed: {e}. Falling back to client-side pruning...")
-        try:
-            from datetime import datetime, timezone, timedelta
-            cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-            supabase.table("sms_message") \
-                .delete() \
-                .lt("received_timestamp", cutoff) \
-                .neq("sms_id", "CACHE_SMS") \
-                .execute()
-            print("Database cache fallback pruning: Success.")
-        except Exception as ex:
-            print(f"Fallback database pruning failed: {ex}")
+    pass
 
 
 async def get_url_reputations(since_timestamp_ms: Optional[int] = None) -> dict:
@@ -1163,7 +1140,7 @@ async def get_url_reputations(since_timestamp_ms: Optional[int] = None) -> dict:
     try:
         query = supabase.table("url_analysis") \
             .select("scan_result, created_at, url!inner(full_url, host)") \
-            .eq("sms_id", "CACHE_SMS")
+            .order("created_at", desc=True)
 
         if since_timestamp_ms is not None and since_timestamp_ms > 0:
             dt = datetime.fromtimestamp(since_timestamp_ms / 1000.0, tz=timezone.utc)
@@ -1172,10 +1149,15 @@ async def get_url_reputations(since_timestamp_ms: Optional[int] = None) -> dict:
 
         response = query.execute()
         urls_list = []
+        seen_urls = set()
         if response.data:
             for row in response.data:
-                scan_data = json.loads(row.get("scan_result") or "{}")
+                raw_data = row.get("scan_result")
+                scan_data = raw_data if isinstance(raw_data, dict) else json.loads(raw_data or "{}")
                 full_url = scan_data.get("extracted_url") or row.get("url", {}).get("full_url", "")
+                if not full_url or full_url in seen_urls:
+                    continue
+                seen_urls.add(full_url)
                 host = row.get("url", {}).get("host", "")
                 if not host and full_url:
                     from urllib.parse import urlparse
