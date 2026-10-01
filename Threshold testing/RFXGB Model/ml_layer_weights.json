@@ -1,0 +1,6 @@
+{
+  "rf_weight": 0.75,
+  "xgb_weight": 0.25,
+  "threshold": 0.50,
+  "val_f1": 0.9179
+}
