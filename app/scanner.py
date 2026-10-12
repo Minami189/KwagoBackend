@@ -200,11 +200,13 @@ def generate_cnn_explanation(message: str, cnn_score: float, has_url: bool = Tru
 def compute_ensemble_score(
     ml_confidence: float,
     cnn_score: float,
-    url_score: Optional[float]
+    url_score: Optional[float],
+    is_malicious_url: bool = False
 ) -> float:
     """
     Computes the ensemble classification score:
-    - Case 3A (URL present & completed): 50% ML / 25% DL / 25% URL
+    - Case 3C (At least one URL confirmed malicious): 50% URL / 35% ML / 15% DL (heavily weighted toward malicious URL)
+    - Case 3A/3B (URL present & completed, benign/suspicious): 50% ML / 25% DL / 25% URL
     - Case 1B & 2B (No URL or pending URL scan): 50% ML / 50% DL
     """
     ml_val = ml_confidence / 100.0 if ml_confidence > 1.0 else ml_confidence
@@ -212,7 +214,11 @@ def compute_ensemble_score(
 
     if url_score is not None:
         u_val = url_score / 100.0 if url_score > 1.0 else url_score
-        score = (0.50 * ml_val) + (0.25 * dl_val) + (0.25 * u_val)
+        if is_malicious_url or u_val >= 0.45:
+            # Heavily weight the URL layer when even a single link is confirmed malicious
+            score = (0.50 * u_val) + (0.35 * ml_val) + (0.15 * dl_val)
+        else:
+            score = (0.50 * ml_val) + (0.25 * dl_val) + (0.25 * u_val)
     else:
         # Re-normalize 50% ML + 50% DL
         score = (0.50 * ml_val) + (0.50 * dl_val)
@@ -244,9 +250,10 @@ def generate_overall_summary(
     url_score = url_analysis.get("score") if (has_url and url_analysis.get("score") is not None and url_verdict != "pending") else None
     extracted_url = url_analysis.get("extracted_url")
     url_contributions = url_analysis.get("contributions") or []
+    is_malicious_url = (url_verdict == "malicious")
 
-    # Calculate exact ensemble score (re-normalizes over ML & DL if URL is None or pending)
-    final_score = compute_ensemble_score(ml_confidence, cnn_score, url_score)
+    # Calculate exact ensemble score (weights malicious URLs much more heavily; re-normalizes over ML & DL if URL is None or pending)
+    final_score = compute_ensemble_score(ml_confidence, cnn_score, url_score, is_malicious_url=is_malicious_url)
 
     ml_pct = int(round(ml_confidence * 100 if ml_confidence <= 1.0 else ml_confidence))
     dl_pct = int(round(cnn_score * 100 if cnn_score <= 1.0 else cnn_score))
@@ -628,6 +635,179 @@ class SMSClassifier:
         return prob
 
 
+def is_email_address(candidate: str) -> bool:
+    """
+    Returns True if the string looks like an email address (contains '@' without a URL scheme).
+    """
+    if not isinstance(candidate, str):
+        return False
+    s = candidate.strip()
+    if "://" in s:
+        return False
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", s))
+
+
+def ensure_url_scheme(url: str) -> str:
+    """
+    Ensures a URL string has an http:// or https:// scheme for VirusTotal and urllib parsing
+    (e.g. converts 'www.promo-bonus.ph' -> 'http://www.promo-bonus.ph').
+    """
+    s = (url or "").strip()
+    if not s:
+        return s
+    if "://" not in s:
+        return "http://" + s
+    return s
+
+
+def resolve_candidate_urls(
+    has_url: bool = True,
+    extracted_url: Optional[str] = None,
+    extracted_urls: Optional[List[str]] = None,
+    urls: Optional[List[str]] = None,
+) -> List[str]:
+    """
+    Resolves and deduplicates all candidate web URLs from the request payload
+    (`extracted_urls`, `urls`, and `extracted_url`), filtering out empty strings
+    and email addresses (e.g., support@gcash-help.com).
+    """
+    if not has_url:
+        return []
+
+    raw_candidates: List[str] = []
+    if extracted_urls:
+        raw_candidates.extend(extracted_urls)
+    if urls:
+        raw_candidates.extend(urls)
+    if extracted_url:
+        raw_candidates.append(extracted_url)
+
+    resolved: List[str] = []
+    seen_normalized: set[str] = set()
+
+    for item in raw_candidates:
+        if not isinstance(item, str):
+            continue
+        cleaned = item.strip().rstrip(".,;!?)>]\'")
+        if not cleaned or is_email_address(cleaned):
+            continue
+        norm_key = ensure_url_scheme(cleaned).lower()
+        if norm_key not in seen_normalized:
+            seen_normalized.add(norm_key)
+            resolved.append(cleaned)
+
+    return resolved
+
+
+def aggregate_multi_url_results(url_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Aggregates scan results across one or more URLs extracted from a single SMS message.
+    If even a single URL is flagged as malicious, it dominates the combined URL threat score
+    and verdict so benign/mirror links in the same message cannot dilute a malicious link.
+    """
+    if not url_results:
+        return {
+            "has_url": False,
+            "extracted_url": None,
+            "extracted_urls": [],
+            "score": None,
+            "verdict": None,
+            "total_weight": None,
+            "explanation": "No URL requested for scanning or no URL provided.",
+            "contributions": [],
+            "individual_results": [],
+        }
+
+    all_urls = [r.get("extracted_url") for r in url_results if r.get("extracted_url")]
+
+    if len(url_results) == 1:
+        single = dict(url_results[0])
+        single["extracted_urls"] = all_urls
+        single["individual_results"] = [dict(url_results[0])]
+        return single
+
+    malicious_items = [
+        r for r in url_results
+        if r.get("verdict") == "malicious" or (r.get("score") is not None and float(r.get("score")) >= 0.45)
+    ]
+    suspicious_items = [
+        r for r in url_results
+        if r not in malicious_items
+        and (r.get("verdict") == "suspicious" or (r.get("score") is not None and float(r.get("score")) >= 0.20))
+    ]
+    scored_items = [r for r in url_results if r.get("score") is not None]
+
+    # Collect unique vendor contributions across all scanned URLs
+    combined_contributions: List[str] = []
+    for r in url_results:
+        for c in (r.get("contributions") or []):
+            if c not in combined_contributions:
+                combined_contributions.append(c)
+
+    weights = [float(r["total_weight"]) for r in url_results if r.get("total_weight") is not None]
+    combined_total_weight = round(max(weights), 4) if weights else None
+
+    if malicious_items:
+        # Sort malicious items by score descending so the worst link leads
+        malicious_items.sort(key=lambda r: float(r.get("score") or 0.45), reverse=True)
+        primary_item = malicious_items[0]
+        max_mal_score = max(float(primary_item.get("score") or 0.45), 0.45)
+
+        # Malicious dominance weighting:
+        # Even if other URLs in the SMS are benign, the malicious URL carries 90% dominance
+        # and is floored at max_mal_score (plus a multi-threat bonus if additional risky links exist).
+        other_scores = [float(r.get("score") or 0.0) for r in url_results if r is not primary_item]
+        max_other = max(other_scores) if other_scores else 0.0
+        weighted_mal_score = max(
+            max_mal_score,
+            min(1.0, (0.90 * max_mal_score) + (0.10 * max_other) + (0.05 * len(malicious_items) if len(malicious_items) > 1 else 0.0)),
+        )
+        final_score = round(weighted_mal_score, 4)
+        final_verdict = "malicious"
+        mal_urls_str = ", ".join(str(r.get("extracted_url")) for r in malicious_items)
+        explanation = (
+            f"Scanned {len(url_results)} URLs; {len(malicious_items)} flagged as malicious ({mal_urls_str}). "
+            f"Malicious link prioritized with dominant threat score {final_score:.2f}. "
+            f"{primary_item.get('explanation', '')}".strip()
+        )
+    elif suspicious_items:
+        suspicious_items.sort(key=lambda r: float(r.get("score") or 0.25), reverse=True)
+        primary_item = suspicious_items[0]
+        max_susp_score = max(float(primary_item.get("score") or 0.25), 0.20)
+        final_score = round(max_susp_score, 4)
+        final_verdict = "suspicious"
+        susp_urls_str = ", ".join(str(r.get("extracted_url")) for r in suspicious_items)
+        explanation = (
+            f"Scanned {len(url_results)} URLs; {len(suspicious_items)} flagged as suspicious ({susp_urls_str}) "
+            f"with threat score {final_score:.2f}. "
+            f"{primary_item.get('explanation', '')}".strip()
+        )
+    elif scored_items:
+        scored_items.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
+        primary_item = scored_items[0]
+        final_score = round(float(primary_item.get("score") or 0.0), 4)
+        final_verdict = primary_item.get("verdict") or "clean"
+        explanation = f"Scanned {len(url_results)} URLs; all evaluated links appear clean (max threat score: {final_score:.2f})."
+    else:
+        primary_item = url_results[0]
+        final_score = None
+        verdict_candidates = [r.get("verdict") for r in url_results if r.get("verdict")]
+        final_verdict = verdict_candidates[0] if verdict_candidates else "pending"
+        explanation = f"Scanned {len(url_results)} URLs; URL security scan is pending verification."
+
+    return {
+        "has_url": True,
+        "extracted_url": primary_item.get("extracted_url") or (all_urls[0] if all_urls else None),
+        "extracted_urls": all_urls,
+        "score": final_score,
+        "verdict": final_verdict,
+        "total_weight": combined_total_weight,
+        "explanation": explanation,
+        "contributions": combined_contributions,
+        "individual_results": [dict(r) for r in url_results],
+    }
+
+
 def extract_urls(text: str) -> List[str]:
     """
     Extracts HTTP, HTTPS, or WWW URLs from text.
@@ -655,9 +835,10 @@ async def analyze_sms_url(url: str) -> Dict[str, Any]:
     """
     try:
         analysis_results = None
+        vt_target_url = ensure_url_scheme(url)
 
         # 1. Compute URL ID and check for existing report
-        url_id = get_url_id(url)
+        url_id = get_url_id(vt_target_url)
         report_response = await get_url_report(url_id)
 
         if report_response.get("status_code") == 200:
@@ -665,7 +846,7 @@ async def analyze_sms_url(url: str) -> Dict[str, Any]:
 
         # 2. Fallback to submitting new scan if no cached report was found
         if not analysis_results:
-            scan_response = await scan_url(url)
+            scan_response = await scan_url(vt_target_url)
             if "error" not in scan_response:
                 scan_id = scan_response.get("data", {}).get("id")
                 if scan_id:
@@ -801,7 +982,7 @@ async def lookup_cached_url(url: str) -> dict | None:
     # 1. Check in-memory cache
     if url in memory_cache:
         print(f"Memory cache hit for URL: {url}")
-        return recalculate_cached_url_score(memory_cache[url])
+        return recalculate_cached_url_score(dict(memory_cache[url]))
 
     # 2. Check Supabase database cache (under CACHE_SMS)
     if not supabase:
@@ -824,7 +1005,7 @@ async def lookup_cached_url(url: str) -> dict | None:
             # Store updated score in memory cache
             memory_cache[url] = scan_data
             print(f"Database cache hit for URL: {url}")
-            return scan_data
+            return dict(scan_data)
 
     except Exception as e:
         print(f"Database cache lookup error for {url}: {e}")
@@ -849,9 +1030,9 @@ async def save_url_scan_to_db(url: str, sms_id: str, is_malicious: int, scan_res
         if res.data:
             url_db_id = res.data[0]["url_id"]
         else:
-            # Insert new URL entry
+            # Insert new URL entry (ensure scheme for urlparse when handling 'www.example.com')
             url_db_id = str(uuid.uuid4())
-            parsed = urlparse(url)
+            parsed = urlparse(ensure_url_scheme(url))
             scheme = parsed.scheme
             host = parsed.hostname or parsed.netloc or ""
             path = parsed.path

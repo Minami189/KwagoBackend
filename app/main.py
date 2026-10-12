@@ -211,8 +211,16 @@ async def scan_sms_message(request: SmsScanRequest):
         )
 
     try:
+        # Resolve all candidate web URLs from extracted_urls, urls, and extracted_url (filtering out emails)
+        candidate_urls = scanner.resolve_candidate_urls(
+            has_url=request.has_url,
+            extracted_url=request.extracted_url,
+            extracted_urls=request.extracted_urls,
+            urls=request.urls,
+        )
+        has_url_flag = bool(request.has_url and candidate_urls)
+
         # 1. CNN-BiGRU Deep Learning Model Scoring
-        has_url_flag = request.has_url and bool(request.extracted_url)
         cnn_probability = sms_classifier.predict(message_to_scan)
         cnn_verdict, cnn_explanation = scanner.generate_cnn_explanation(
             message=message_to_scan,
@@ -228,41 +236,44 @@ async def scan_sms_message(request: SmsScanRequest):
 
         ml_confidence_val = request.ml_confidence or 0.0
 
-        # 2. VirusTotal URL Threat Scoring with dual-layer caching (in-memory + database)
+        # 2. VirusTotal URL Threat Scoring with dual-layer caching (in-memory + database) across all URLs
         url_res_dict = {}
-        is_url_cache_hit = False
-        if request.has_url and request.extracted_url:
-            primary_url = request.extracted_url.strip()
-            
-            # Check caching layer (in-memory -> database)
-            cached_scan = await scanner.lookup_cached_url(primary_url)
-            if cached_scan:
-                url_res_dict = cached_scan
-                is_url_cache_hit = True
-            else:
-                # Cache miss: Run live query
-                url_res_dict = await scanner.analyze_sms_url(primary_url)
-                is_url_cache_hit = False
-            
+        per_url_scans: list[tuple[str, dict, bool]] = []  # (url_str, scan_dict, is_cache_hit)
+
+        if has_url_flag:
+            for target_url in candidate_urls:
+                cached_scan = await scanner.lookup_cached_url(target_url)
+                if cached_scan:
+                    scan_item = dict(cached_scan)
+                    scan_item["extracted_url"] = target_url
+                    per_url_scans.append((target_url, scan_item, True))
+                else:
+                    scan_item = await scanner.analyze_sms_url(target_url)
+                    per_url_scans.append((target_url, scan_item, False))
+
+            url_res_dict = scanner.aggregate_multi_url_results([item[1] for item in per_url_scans])
             url_res = UrlAnalysisResult(**url_res_dict)
         else:
             url_res = UrlAnalysisResult(
                 has_url=False,
                 extracted_url=None,
+                extracted_urls=[],
                 score=None,
                 verdict=None,
                 total_weight=None,
                 explanation="No URL requested for scanning or no URL provided.",
-                contributions=[]
+                contributions=[],
+                individual_results=[]
             )
 
-        # 3. Synthesize Overall Verdict, Score, and Executive Summary Explanation (50% ML / 25% DL / 25% URL)
+        # 3. Synthesize Overall Verdict, Score, and Executive Summary Explanation
+        # (Malicious URLs automatically trigger higher URL weighting and escalation)
         overall_verdict, overall_score, overall_explanation = scanner.generate_overall_summary(
             message=message_to_scan,
             ml_confidence=float(ml_confidence_val),
             cnn_score=float(cnn_probability),
             cnn_explanation=cnn_explanation,
-            url_analysis=url_res_dict if (request.has_url and request.extracted_url) else {}
+            url_analysis=url_res_dict if has_url_flag else {}
         )
 
         # 4. Only save SMS logs and classification results if user allowed saving AND overall_score reaches 65% (0.65) threshold
@@ -273,7 +284,7 @@ async def scan_sms_message(request: SmsScanRequest):
             if saved_sms_id:
                 # Save CNN, local ML, URL, and Ensemble predictions to public.analysis_result
                 norm_ml_prediction = scanner.normalize_ml_prediction(request.ml_prediction, ml_confidence_val)
-                extracted_url_score = url_res_dict.get("score") if (request.has_url and request.extracted_url and url_res_dict) else None
+                extracted_url_score = url_res_dict.get("score") if (has_url_flag and url_res_dict) else None
 
                 await scanner.save_analysis_result_to_db(
                     sms_id=saved_sms_id,
@@ -286,29 +297,40 @@ async def scan_sms_message(request: SmsScanRequest):
                     ensemble_verdict=str(overall_verdict).lower()
                 )
 
-                # Store URL in database linked exclusively to the user's sms_id (no CACHE_SMS)
-                if request.has_url and request.extracted_url and url_res_dict:
-                    await scanner.save_url_scan_to_db(
-                        url=request.extracted_url.strip(),
-                        sms_id=saved_sms_id,
-                        is_malicious=1 if url_res_dict.get("verdict") == "malicious" else 0,
-                        scan_result=url_res_dict
-                    )
+                # Store EACH URL separately in Supabase (public.url and public.url_analysis) linked to saved_sms_id
+                if has_url_flag and per_url_scans:
+                    for target_url, single_scan_dict, _ in per_url_scans:
+                        is_mal = 1 if (
+                            single_scan_dict.get("verdict") == "malicious"
+                            or (single_scan_dict.get("score") is not None and float(single_scan_dict.get("score")) >= 0.45)
+                        ) else 0
+                        await scanner.save_url_scan_to_db(
+                            url=target_url,
+                            sms_id=saved_sms_id,
+                            is_malicious=is_mal,
+                            scan_result=single_scan_dict
+                        )
 
-        # If the URL was newly scanned (cache miss) and NOT saved under a user sms_id, save as CACHE_SMS
-        if request.has_url and request.extracted_url and url_res_dict and not is_url_cache_hit and not saved_sms_id:
-            await scanner.save_url_scan_to_db(
-                url=request.extracted_url.strip(),
-                sms_id="CACHE_SMS",
-                is_malicious=1 if url_res_dict.get("verdict") == "malicious" else 0,
-                scan_result=url_res_dict
-            )
+        # For any URL that was newly scanned (cache miss) and NOT saved under a user sms_id, save separately under CACHE_SMS
+        if has_url_flag and per_url_scans and not saved_sms_id:
+            for target_url, single_scan_dict, was_cache_hit in per_url_scans:
+                if not was_cache_hit:
+                    is_mal = 1 if (
+                        single_scan_dict.get("verdict") == "malicious"
+                        or (single_scan_dict.get("score") is not None and float(single_scan_dict.get("score")) >= 0.45)
+                    ) else 0
+                    await scanner.save_url_scan_to_db(
+                        url=target_url,
+                        sms_id="CACHE_SMS",
+                        is_malicious=is_mal,
+                        scan_result=single_scan_dict
+                    )
 
         # 5. Automatically log to NTC report table if auto_report is enabled AND overall_score reaches suspicious/harmful threshold (>= 0.65)
         if request.auto_report and overall_score >= 0.65:
             await scanner.save_ntc_report_to_db(
                 message=message_to_scan,
-                url_analysis=url_res_dict if (request.has_url and request.extracted_url) else {},
+                url_analysis=url_res_dict if has_url_flag else {},
                 ml_score=float(ml_confidence_val),
                 dl_score=float(cnn_probability),
                 final_score=float(overall_score),
@@ -343,6 +365,14 @@ async def scan_sms_message(request: SmsScanRequest):
 )
 async def report_misclassification(request: MisclassificationReportRequest):
     try:
+        resolved_urls = scanner.resolve_candidate_urls(
+            has_url=request.has_url,
+            extracted_url=request.extracted_url,
+            extracted_urls=request.extracted_urls,
+            urls=request.urls,
+        )
+        extracted_url_str = ", ".join(resolved_urls) if resolved_urls else request.extracted_url
+
         report_id = await scanner.save_misclassification_report_to_db(
             message=request.message,
             original_verdict=request.original_verdict,
@@ -351,8 +381,8 @@ async def report_misclassification(request: MisclassificationReportRequest):
             original_ml_score=request.original_ml_score,
             original_dl_score=request.original_dl_score,
             sender=request.sender,
-            has_url=request.has_url,
-            extracted_url=request.extracted_url,
+            has_url=bool(request.has_url and resolved_urls),
+            extracted_url=extracted_url_str,
             report_type=request.report_type,
             user_comment=request.user_comment,
             app_version=request.app_version,

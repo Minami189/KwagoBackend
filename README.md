@@ -18,9 +18,10 @@ KwagoBackend combines three distinct threat detection layers to determine an ove
 
 | Case Scenario | Active Layers & Weights | Ensemble Formula |
 | :--- | :--- | :--- |
-| **Case 1: No Web Link** | 50% Local ML + 50% CNN DL | $S = (0.50 \times \text{ML}) + (0.50 \times \text{DL})$ |
+| **Case 1: No Web Link (or Only Email Address)** | 50% Local ML + 50% CNN DL | $S = (0.50 \times \text{ML}) + (0.50 \times \text{DL})$ |
 | **Case 2: Web Link Present, but Scan Pending / Unavailable** | 50% Local ML + 50% CNN DL *(+ Caution Warning Appended)* | $S = (0.50 \times \text{ML}) + (0.50 \times \text{DL})$ |
-| **Case 3: Web Link Present & Scan Completed** | 50% Local ML + 25% CNN DL + 25% URL Scan | $S = (0.50 \times \text{ML}) + (0.25 \times \text{DL}) + (0.25 \times \text{URL})$ |
+| **Case 3A: Web Link(s) Present & Scan Completed (Clean / Suspicious)** | 50% Local ML + 25% CNN DL + 25% URL Scan | $S = (0.50 \times \text{ML}) + (0.25 \times \text{DL}) + (0.25 \times \text{URL})$ |
+| **Case 3B: Any Web Link Confirmed Malicious ($S_{\text{URL}} \ge 0.45$)** | **50% URL Scan** + 35% Local ML + 15% CNN DL *(+ Escalation Floor $\ge 0.85$)* | $S = \max\big(0.85, (0.50 \times \text{URL}) + (0.35 \times \text{ML}) + (0.15 \times \text{DL})\big)$ |
 
 ---
 
@@ -175,21 +176,23 @@ In standard weighted averages, a URL flagged by 20+ vendors can have its threat 
 
 ---
 
-### F. Multi-Layer Ensemble Integration & Clean Link Mitigation
+### F. Multi-URL Handling, Malicious Link Dominance & Separate Database Storage
 
-The URL analysis score directly influences the overall SMS smishing classification:
+SMS messages often contain multiple web links (e.g., primary phishing link + backup mirror, or a malicious link paired with a benign decoy link) as well as email addresses:
 
-1. **Standard Completed Scan (Case 3A)**:
-   $$S = (0.50 \times \text{ML}) + (0.25 \times \text{DL}) + (0.25 \times \text{URL})$$
-2. **Clean URL Mitigation**:
-   * If message text exhibits smishing cues (e.g. promotional wording or urgency where $\text{DL} = 0.70$, $\text{ML} = 0.50$), but the link is verified **Clean** ($S_{\text{URL}} = 0.0$), the combined score drops below $0.65$ (**`Safe`**).
-   * The explanation synthesizes this explicitly:
-     > *"Although message text exhibits smishing cues, the overall message is verified as Safe because the embedded web link was verified clean."*
-3. **Malicious URL Escalation**:
-   * If the URL is confirmed `malicious` ($S_{\text{URL}} \ge 0.85$), the overall message escalates directly to **`Harmful`**, citing the specific flagging antivirus vendors (e.g. *"detected by Fortinet, Symantec"*).
-4. **Pending URL Caution**:
-   * If the URL is `pending`, the ensemble safely recalculates over text layers ($50\%$ ML / $50\%$ DL) and appends:
-     > *"Exercise caution: this message contains a web link ({url}) that has not been verified by online threat intelligence yet, so its safety cannot be guaranteed."*
+1. **Multi-URL Resolution & Email Filtering ([`resolve_candidate_urls`](file:///c:/Users/Soon1/OneDrive/Desktop/Model-API%20testing/app/scanner.py))**:
+   * Accepts `extracted_urls: [...]`, `urls: [...]`, and `extracted_url` in the request payload, deduplicating links while normalizing scheme-less domains (such as `www.promo-bonus.ph` $\rightarrow$ `http://www.promo-bonus.ph` for VirusTotal and host parsing).
+   * Automatically ignores email addresses (e.g., `support@gcash-help.com`, `hr@company-recruitment.com`). If a message contains only an email address (`has_url: false`, `urls: []`), it is evaluated strictly via the text ensemble (50% ML / 50% DL).
+2. **Malicious Link Dominance ([`aggregate_multi_url_results`](file:///c:/Users/Soon1/OneDrive/Desktop/Model-API%20testing/app/scanner.py) & [`compute_ensemble_score`](file:///c:/Users/Soon1/OneDrive/Desktop/Model-API%20testing/app/scanner.py))**:
+   * **Anti-Dilution Across Multiple Links**: If **even a single URL** in a multi-link message is flagged as `malicious` ($S_{\text{URL}} \ge 0.45$), the aggregated URL verdict is immediately set to `malicious` and the highest-scoring malicious URL dominates the URL threat score ($90\%$ weight on the peak malicious link, floored at its full threat score so benign links in the same SMS cannot dilute it).
+   * **Elevated Ensemble Weighting**: When any URL is confirmed malicious, the overall SMS ensemble shifts weight heavily toward the URL scanner (**50% URL / 35% ML / 15% DL** instead of the standard 25% URL / 50% ML / 25% DL) and enforces a minimum **`Harmful`** escalation floor ($\ge 0.85$).
+3. **Separate Supabase Persistence per URL ([`save_url_scan_to_db`](file:///c:/Users/Soon1/OneDrive/Desktop/Model-API%20testing/app/scanner.py))**:
+   * Every URL in the message is saved **separately** in Supabase:
+     * Each unique link is parsed (`scheme`, `host`, `path`, `query`) and stored as its own row in `public.url`.
+     * Each link's individual VirusTotal scan result and `is_malicious` flag are stored as a separate record in `public.url_analysis` linked to the message's `sms_id` (when `allow_save = true` and `overall_score >= 0.65`) or under `CACHE_SMS` for global threat caching.
+4. **Clean URL Mitigation & Pending URL Caution**:
+   * **Clean URL Mitigation**: If all links in the message are verified **Clean** ($S_{\text{URL}} < 0.20$) and the weighted score is $< 0.65$, the message is verified as **`Safe`**.
+   * **Pending URL Caution**: If URL scans are `pending`, the ensemble calculates over the text layers ($50\%$ ML / $50\%$ DL) and appends a caution notice.
 
 ---
 
@@ -291,45 +294,125 @@ Verify service status and classifier model availability.
 
 ### B. SMS Smishing Scan (`POST /scan-sms`)
 
-Scans an SMS message text, evaluates local ML confidence, runs server CNN-BiGRU inference, and performs VirusTotal URL lookup if a web link is included.
+Scans an SMS message text, evaluates local ML confidence, runs server CNN-BiGRU inference, and performs VirusTotal URL lookups across one or more web links. Each extracted URL is cached and stored separately in Supabase (`public.url` and `public.url_analysis`), and if any single URL is malicious, it is weighted dominantly in the final verdict.
 
 * **Endpoint:** `POST /scan-sms`
 * **Headers:** `Authorization: Bearer <KWAGO_API_KEY>`
-* **Request Body:**
-  ```json
-  {
-    "message": "CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com",
-    "has_url": true,
-    "extracted_url": "http://fake-claim.com",
-    "allow_save": false,
-    "sender": "+639123456789",
-    "ml_prediction": "smishing",
-    "ml_confidence": 0.85,
-    "auto_report": true
-  }
-  ```
+
+#### Example 1: Message with Multiple URLs
+For a message containing multiple web links:
+> `"URGENT: Verify your account at https://bdo-security-update.com/login and check backup mirror http://bdo-mirror.ph/verify"`
+
+```json
+{
+  "message": "URGENT: Verify your account at https://bdo-security-update.com/login and check backup mirror http://bdo-mirror.ph/verify",
+  "has_url": true,
+  "extracted_url": "https://bdo-security-update.com/login",
+  "extracted_urls": [
+    "https://bdo-security-update.com/login",
+    "http://bdo-mirror.ph/verify"
+  ],
+  "urls": [
+    "https://bdo-security-update.com/login",
+    "http://bdo-mirror.ph/verify"
+  ],
+  "sender": "+63917***4567",
+  "ml_prediction": "smishing",
+  "ml_confidence": 0.88,
+  "allow_save": false,
+  "auto_report": false
+}
+```
+
+#### Example 2: Message with Both an Email and Multiple URLs
+For a message containing both an email address and multiple web links (`support@gcash-help.com` is recognized as an email and excluded from the URLs array):
+> `"Contact support@gcash-help.com or visit https://gcash-claim.net/ and www.promo-bonus.ph for details"`
+
+```json
+{
+  "message": "Contact support@gcash-help.com or visit https://gcash-claim.net/ and www.promo-bonus.ph for details",
+  "has_url": true,
+  "extracted_url": "https://gcash-claim.net/",
+  "extracted_urls": [
+    "https://gcash-claim.net/",
+    "www.promo-bonus.ph"
+  ],
+  "urls": [
+    "https://gcash-claim.net/",
+    "www.promo-bonus.ph"
+  ],
+  "sender": "GCashPromo",
+  "ml_prediction": "suspicious",
+  "ml_confidence": 0.74,
+  "allow_save": false,
+  "auto_report": false
+}
+```
+
+#### Example 3: Message with Only an Email (No Web Links)
+For a message containing only an email address:
+> `"Please forward your latest bank statement to hr@company-recruitment.com for processing."`
+
+```json
+{
+  "message": "Please forward your latest bank statement to hr@company-recruitment.com for processing.",
+  "has_url": false,
+  "extracted_url": null,
+  "extracted_urls": [],
+  "urls": [],
+  "sender": "Recruiter",
+  "ml_prediction": "benign",
+  "ml_confidence": 0.12,
+  "allow_save": false,
+  "auto_report": false
+}
+```
 
 * **Response Body (`SmsScanResponse`):**
   ```json
   {
-    "message": "CONGRATS! You won a $1000 gift card. Claim now at http://fake-claim.com",
+    "message": "URGENT: Verify your account at https://bdo-security-update.com/login and check backup mirror http://bdo-mirror.ph/verify",
     "overall_verdict": "Harmful",
-    "overall_score": 0.9125,
-    "overall_explanation": "Both the local ML and Deep Learning layers confirmed High Risk because the message promotes unsolicited monetary bonuses, deposit rewards, or financial incentives. Furthermore, the embedded web link (http://fake-claim.com) was confirmed as a high-risk malicious phishing site.",
+    "overall_score": 0.9105,
+    "overall_explanation": "Both the local ML and Deep Learning layers confirmed High Risk because the message uses urgent security alerts or account suspension warnings to pressure immediate action. Furthermore, the embedded web link (https://bdo-security-update.com/login) was confirmed as a high-risk malicious phishing site.",
     "cnn_analysis": {
       "score": 0.95,
       "verdict": "harmful",
-      "explanation": "Promotes unsolicited monetary bonuses, deposit rewards, or financial incentives."
+      "explanation": "Uses urgent security alerts or account suspension warnings to pressure immediate action."
     },
     "url_analysis": {
       "has_url": true,
-      "extracted_url": "http://fake-claim.com",
+      "extracted_url": "https://bdo-security-update.com/login",
+      "extracted_urls": [
+        "https://bdo-security-update.com/login",
+        "http://bdo-mirror.ph/verify"
+      ],
       "score": 0.90,
       "verdict": "malicious",
       "total_weight": 14.85,
-      "explanation": "This URL is flagged as malicious (threat score: 0.90). Detected by: Fortinet (malicious).",
+      "explanation": "Scanned 2 URLs; 1 flagged as malicious (https://bdo-security-update.com/login). Malicious link prioritized with dominant threat score 0.90. This URL is flagged as malicious (threat score: 0.90). Detected by: Fortinet (malicious).",
       "contributions": [
         "Fortinet (malicious)"
+      ],
+      "individual_results": [
+        {
+          "has_url": true,
+          "extracted_url": "https://bdo-security-update.com/login",
+          "score": 0.90,
+          "verdict": "malicious",
+          "total_weight": 14.85,
+          "explanation": "This URL is flagged as malicious (threat score: 0.90). Detected by: Fortinet (malicious).",
+          "contributions": ["Fortinet (malicious)"]
+        },
+        {
+          "has_url": true,
+          "extracted_url": "http://bdo-mirror.ph/verify",
+          "score": 0.0,
+          "verdict": "clean",
+          "total_weight": 14.85,
+          "explanation": "This URL appears clean (threat score: 0.00). No security vendors flagged this URL.",
+          "contributions": []
+        }
       ]
     }
   }

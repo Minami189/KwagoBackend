@@ -33,12 +33,22 @@ class SmsScanRequest(BaseModel):
     has_url: bool = Field(
         ...,
         description="Indicates whether the SMS contains a URL extracted by the client.",
-        json_schema_extra={"example": False}
+        json_schema_extra={"example": True}
     )
     extracted_url: Optional[str] = Field(
         None,
-        description="The URL extracted from the message by the client, if any.",
-        json_schema_extra={"example": None}
+        description="The primary URL extracted from the message by the client, if any.",
+        json_schema_extra={"example": "https://bdo-security-update.com/login"}
+    )
+    extracted_urls: Optional[List[str]] = Field(
+        default_factory=list,
+        description="List of all web URLs extracted from the message by the client.",
+        json_schema_extra={"example": ["https://bdo-security-update.com/login", "http://bdo-mirror.ph/verify"]}
+    )
+    urls: Optional[List[str]] = Field(
+        default_factory=list,
+        description="Alias list of all web URLs extracted from the message by the client.",
+        json_schema_extra={"example": ["https://bdo-security-update.com/login", "http://bdo-mirror.ph/verify"]}
     )
     allow_save: bool = Field(
         False,
@@ -80,13 +90,15 @@ class CnnAnalysisResult(BaseModel):
 
 
 class UrlAnalysisResult(BaseModel):
-    has_url: bool = Field(..., description="Whether an HTTP/HTTPS URL was detected in the message.")
-    extracted_url: Optional[str] = Field(None, description="The URL extracted from the message, if any.")
+    has_url: bool = Field(..., description="Whether an HTTP/HTTPS/WWW URL was detected in the message.")
+    extracted_url: Optional[str] = Field(None, description="The primary or highest-risk URL extracted from the message, if any.")
+    extracted_urls: Optional[List[str]] = Field(default_factory=list, description="All URLs extracted and analyzed from the message.")
     score: Optional[float] = Field(None, description="VirusTotal normalized threat score (0.0 safe to 1.0 dangerous), or null if no URL.")
-    verdict: Optional[str] = Field(None, description="VirusTotal verdict ('malicious', 'suspicious', 'benign'), or null if no URL.")
+    verdict: Optional[str] = Field(None, description="VirusTotal verdict ('malicious', 'suspicious', 'benign', 'pending'), or null if no URL.")
     total_weight: Optional[float] = Field(None, description="Total weight of evaluated VirusTotal engines, or null if no URL.")
     explanation: Optional[str] = Field(None, description="Human-readable breakdown of the URL scoring calculation.")
     contributions: Optional[List[str]] = Field(None, description="Individual VirusTotal engine contributions.")
+    individual_results: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Per-URL VirusTotal scan results when one or more URLs are evaluated.")
 
 
 class UrlReputationItem(BaseModel):
@@ -134,6 +146,16 @@ class MisclassificationReportRequest(BaseModel):
         None,
         description="The URL contained in the SMS, if applicable.",
         json_schema_extra={"example": None}
+    )
+    extracted_urls: Optional[List[str]] = Field(
+        default_factory=list,
+        description="List of all URLs contained in the SMS, if applicable.",
+        json_schema_extra={"example": []}
+    )
+    urls: Optional[List[str]] = Field(
+        default_factory=list,
+        description="Alias list of all URLs contained in the SMS, if applicable.",
+        json_schema_extra={"example": []}
     )
     original_verdict: str = Field(
         ...,
