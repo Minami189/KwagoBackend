@@ -1,0 +1,14 @@
+{
+  "functions": {
+    "app/main.py": {
+      "maxDuration": 60,
+      "includeFiles": "{models/cnn_bigru_model.onnx,models/tokenizer_b.pkl,app/source_weights.csv}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/app/main.py"
+    }
+  ]
+}

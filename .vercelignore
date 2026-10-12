@@ -1,0 +1,21 @@
+# Virtual environments and caches
+.venv/
+__pycache__/
+*.pyc
+
+# Local environment secrets
+.env
+
+# Threshold testing scripts, datasets, and RF/XGB models (not needed in server runtime)
+Threshold testing/
+
+# Unused training artifacts and notebooks inside models/
+models/*.keras
+models/*.ipynb
+models/predict_interactive.py
+models/meta_classifier.pkl
+models/label_encoder.pkl
+
+# Documentation and SQL migration scripts
+*.md
+*.sql
