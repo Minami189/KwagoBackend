@@ -1,14 +1,9 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/index.py": {
+    "app/main.py": {
       "maxDuration": 60,
-      "includeFiles": "{models/cnn_bigru_model.onnx,models/tokenizer_b.pkl,app/**}"
+      "includeFiles": "{models/cnn_bigru_model.onnx,models/tokenizer_b.pkl,app/source_weights.csv}"
     }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api/index.py"
-    }
-  ]
+  }
 }
