@@ -197,6 +197,13 @@ async def scan_sms_message(request: SmsScanRequest):
             detail="The SMS message input field cannot be empty."
         )
 
+    global sms_classifier
+    if sms_classifier is None:
+        try:
+            sms_classifier = scanner.SMSClassifier()
+        except Exception as e:
+            print(f"Warning: Lazy-loading SMS Classifier failed: {e}")
+
     if sms_classifier is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
