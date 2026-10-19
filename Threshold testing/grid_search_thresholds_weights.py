@@ -2,15 +2,17 @@
 KwagoBackend - Exhaustive Grid Sweep: All Thresholds, All Cases, All Ensemble Weights
 -------------------------------------------------------------------------------------
 Evaluates performance across:
-- All Thresholds: 0.10 to 0.90 (step 0.05)
-- All Cases: Case 1 (Text-only), Case 2 (URL Pending), Case 3A (Clean URL),
-             Case 3B (Suspicious URL), Case 3C (Malicious URL), and Full Dataset.
-- All Weight Configurations:
-    - 2-Layer weights (DL : ML): 1.0:0.0, 0.9:0.1, 0.8:0.2, 0.75:0.25, 0.67:0.33 (Baseline),
-                                0.6:0.4, 0.5:0.5, 0.4:0.6, 0.33:0.67, 0.2:0.8, 0.1:0.9, 0.0:1.0
-    - 3-Layer weights (DL : ML : URL): 0.50:0.25:0.25 (Baseline), 0.60:0.20:0.20,
-                                       0.40:0.30:0.30, 0.33:0.33:0.33, 0.70:0.15:0.15,
-                                       0.40:0.20:0.40, 0.50:0.15:0.35, 0.60:0.10:0.30
+1. Real VirusTotal URL Threat Scores (loaded from `sms_cleaned.csv` `url_scan_result` column).
+2. Diverse 3-Layer Ensemble Weights testing different URL weight circumstances:
+   - w_URL from 0.05 to 0.70 (5% to 70% URL influence)
+   - Balanced, DL-dominant, and ML-dominant splits
+   - Both Pure Linear Ensemble and Malicious Dominance Override
+3. Rule-Based URL Override Architecture:
+   - URL threat score is NOT part of the linear ensemble weight.
+   - Message text is evaluated by 2-layer (DL + ML) text ensemble.
+   - Rule-based URL trigger: If a message has a URL and its VirusTotal threat score >= theta_url,
+     automatically classify the entire message as Harmful (Phishing), testing theta_url from 0.20 to 1.00.
+4. Standalone Benchmarks: Pure DL, Pure ML, 2-Layer Text Ensemble.
 
 Exports complete results to: all_thresholds_cases_weights_results.csv
 """
@@ -21,7 +23,7 @@ import re
 import sys
 import time
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 import numpy as np
 
 # Ensure project root and testing dir are in Python module search path
@@ -38,12 +40,11 @@ import predict_interactive as pi
 from app import scanner
 
 
-def load_dataset(csv_path: str = None):
-    if csv_path is None:
-        path = TESTING_DIR / "sms_cleaned.csv"
-    else:
-        path = Path(csv_path)
-
+def load_dataset(csv_path: str = None) -> Tuple[List[Dict[str, str]], List[str], np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Loads dataset from sms_cleaned.csv including the real VirusTotal `url_scan_result` column.
+    """
+    path = Path(csv_path) if csv_path else (TESTING_DIR / "sms_cleaned.csv")
     if not path.exists():
         raise FileNotFoundError(f"Could not find dataset at {path.resolve()}")
 
@@ -57,14 +58,31 @@ def load_dataset(csv_path: str = None):
         for r in rows
     ], dtype=int)
 
-    url_pattern = re.compile(r'(?:https?://|www\.)[^\s]+', re.IGNORECASE)
-    has_url = np.array([bool(url_pattern.search(t)) for t in texts], dtype=bool)
+    url_scores = np.zeros(len(rows), dtype=np.float32)
+    has_url = np.zeros(len(rows), dtype=bool)
 
-    return rows, texts, y_true, has_url
+    for i, r in enumerate(rows):
+        val = r.get("url_scan_result", "")
+        if val is not None and str(val).strip() != "":
+            try:
+                url_scores[i] = float(val)
+                has_url[i] = True
+            except ValueError:
+                has_url[i] = False
+        else:
+            has_url[i] = False
+
+    print(f"[*] Loaded dataset: {len(rows):,} total records")
+    print(f"    - Phishing count: {int(np.sum(y_true == 1)):,} ({np.mean(y_true == 1)*100:.1f}%)")
+    print(f"    - Benign count:   {int(np.sum(y_true == 0)):,} ({np.mean(y_true == 0)*100:.1f}%)")
+    print(f"    - Messages with URL (real VT scan): {int(np.sum(has_url)):,} ({np.mean(has_url)*100:.1f}%)")
+    print(f"    - Text-only messages (no URL):     {int(np.sum(~has_url)):,} ({np.mean(~has_url)*100:.1f}%)")
+
+    return rows, texts, y_true, has_url, url_scores
 
 
 def generate_dl_scores(texts: List[str], classifier: scanner.SMSClassifier) -> np.ndarray:
-    print("[*] Generating Deep Learning (CNN-BiGRU) scores via ONNX Runtime...")
+    print("\n[*] Generating Deep Learning (CNN-BiGRU) scores via ONNX Runtime...")
     t0 = time.time()
     sequences = []
     for t in texts:
@@ -90,15 +108,7 @@ def generate_dl_scores(texts: List[str], classifier: scanner.SMSClassifier) -> n
 
 
 def generate_real_ml_scores(texts: List[str]) -> np.ndarray:
-    """
-    Computes authentic on-device Local ML probabilities across all messages
-    using the real RFXGB Model ONNX pipeline:
-    - Preprocessing + Numerical feature extraction (19 features)
-    - scaler.onnx
-    - tfidf.onnx (1500 features)
-    - rf_model.onnx + xgboost_model.onnx (75% RF / 25% XGBoost)
-    """
-    print("[*] Generating Authentic Local ML (RF + XGBoost) scores via ONNX Runtime...")
+    print("\n[*] Generating Authentic Local ML (RF + XGBoost) scores via ONNX Runtime...")
     t0 = time.time()
 
     scaler_path = str(MODEL_DIR / "scaler.onnx")
@@ -133,14 +143,12 @@ def generate_real_ml_scores(texts: List[str]) -> np.ndarray:
     rf_probs = pi.sigmoid(rf_raw)
     xgb_probs = xgb_sess.run(None, {"float_input": X_all})[1][:, 1]
 
-    # Weighted local ensemble from ml_layer_weights.json (75% RF / 25% XGBoost)
     ml_scores = (0.75 * rf_probs) + (0.25 * xgb_probs)
-
-    print(f"    Authentic Local ML inference finished in {time.time() - t0:.2f}s ({len(texts)} samples)")
+    print(f"    Local ML inference finished in {time.time() - t0:.2f}s ({len(texts)} samples)")
     return ml_scores
 
 
-def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
+def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, Any]:
     tp = int(np.sum((y_true == 1) & (y_pred == 1)))
     tn = int(np.sum((y_true == 0) & (y_pred == 0)))
     fp = int(np.sum((y_true == 0) & (y_pred == 1)))
@@ -155,7 +163,6 @@ def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
     fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
     fnr = fn / (fn + tp) if (fn + tp) > 0 else 0.0
     youden_j = recall - fpr
-    # Cost index: Asymmetric fraud loss where missing phishing (FN) is 5x worse than False Alarm (FP)
     cost_index = (fp * 1.0 + fn * 5.0) / total if total > 0 else 0.0
 
     return {
@@ -176,13 +183,12 @@ def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
 def run_exhaustive_sweep():
     output_csv = str(TESTING_DIR / "all_thresholds_cases_weights_results.csv")
 
-    rows, texts, y_true, has_url = load_dataset()
+    rows, texts, y_true, has_url, url_scores = load_dataset()
     classifier = scanner.SMSClassifier()
 
     dl_scores = generate_dl_scores(texts, classifier)
     ml_scores = generate_real_ml_scores(texts)
 
-    # Thresholds: 0.10 to 0.90 with step 0.05
     thresholds = [round(th, 2) for th in np.arange(0.10, 0.95, 0.05)]
 
     # 2-Layer Weight Configurations (w_DL, w_ML)
@@ -193,7 +199,7 @@ def run_exhaustive_sweep():
         (0.75, 0.25, "75% DL / 25% ML"),
         (round(2.0/3.0, 4), round(1.0/3.0, 4), "66.7% DL / 33.3% ML (Previous Baseline)"),
         (0.60, 0.40, "60% DL / 40% ML"),
-        (0.50, 0.50, "50% DL / 50% ML (Updated Baseline)"),
+        (0.50, 0.50, "50% DL / 50% ML (Balanced Baseline)"),
         (0.40, 0.60, "40% DL / 60% ML"),
         (round(1.0/3.0, 4), round(2.0/3.0, 4), "33.3% DL / 66.7% ML"),
         (0.20, 0.80, "20% DL / 80% ML"),
@@ -201,23 +207,64 @@ def run_exhaustive_sweep():
         (0.00, 1.00, "100% ML (Pure ML)"),
     ]
 
-    # 3-Layer Weight Configurations (w_DL, w_ML, w_URL)
+    # Expanded 3-Layer Weight Configurations (w_DL, w_ML, w_URL) testing diverse URL weights
     three_layer_weights = [
-        (0.25, 0.50, 0.25, "50% ML / 25% DL / 25% URL (Updated Baseline)"),
-        (0.50, 0.25, 0.25, "50% DL / 25% ML / 25% URL (Previous Baseline)"),
-        (1.00, 0.00, 0.00, "100% DL (Pure DL)"),
-        (0.00, 1.00, 0.00, "100% ML (Pure ML)"),
-        (0.60, 0.20, 0.20, "60% DL / 20% ML / 20% URL"),
-        (0.40, 0.30, 0.30, "40% DL / 30% ML / 30% URL"),
-        (round(1.0/3.0, 4), round(1.0/3.0, 4), round(1.0/3.0, 4), "33.3% DL / 33.3% ML / 33.3% URL (Equal)"),
+        # --- Light URL Weights (5% to 15%) ---
+        (0.475, 0.475, 0.05, "47.5% DL / 47.5% ML / 5% URL (Very Light URL)"),
+        (0.636, 0.314, 0.05, "63.6% DL / 31.4% ML / 5% URL (DL Heavy, 5% URL)"),
+        (0.314, 0.636, 0.05, "31.4% DL / 63.6% ML / 5% URL (ML Heavy, 5% URL)"),
+        (0.45, 0.45, 0.10, "45% DL / 45% ML / 10% URL"),
+        (0.60, 0.30, 0.10, "60% DL / 30% ML / 10% URL"),
+        (0.30, 0.60, 0.10, "30% DL / 60% ML / 10% URL"),
+        (0.425, 0.425, 0.15, "42.5% DL / 42.5% ML / 15% URL"),
         (0.70, 0.15, 0.15, "70% DL / 15% ML / 15% URL"),
-        (0.40, 0.20, 0.40, "40% DL / 20% ML / 40% URL (Heavy URL)"),
-        (0.50, 0.15, 0.35, "50% DL / 15% ML / 35% URL"),
+        (0.15, 0.70, 0.15, "15% DL / 70% ML / 15% URL"),
+
+        # --- Moderate URL Weights (20% to 30%) ---
+        (0.40, 0.40, 0.20, "40% DL / 40% ML / 20% URL"),
+        (0.60, 0.20, 0.20, "60% DL / 20% ML / 20% URL"),
+        (0.20, 0.60, 0.20, "20% DL / 60% ML / 20% URL"),
+        (0.25, 0.50, 0.25, "25% DL / 50% ML / 25% URL (Production Current Baseline)"),
+        (0.50, 0.25, 0.25, "50% DL / 25% ML / 25% URL (Previous Baseline)"),
+        (0.375, 0.375, 0.25, "37.5% DL / 37.5% ML / 25% URL (Balanced Text)"),
+        (0.35, 0.35, 0.30, "35% DL / 35% ML / 30% URL"),
+        (0.40, 0.30, 0.30, "40% DL / 30% ML / 30% URL"),
         (0.60, 0.10, 0.30, "60% DL / 10% ML / 30% URL"),
+        (round(1.0/3.0, 4), round(1.0/3.0, 4), round(1.0/3.0, 4), "33.3% DL / 33.3% ML / 33.3% URL (Equal 3-Way)"),
+
+        # --- Substantial URL Weights (35% to 50%) ---
+        (0.50, 0.15, 0.35, "50% DL / 15% ML / 35% URL"),
+        (0.30, 0.30, 0.40, "30% DL / 30% ML / 40% URL"),
+        (0.40, 0.20, 0.40, "40% DL / 20% ML / 40% URL (Heavy URL)"),
+        (0.20, 0.40, 0.40, "20% DL / 40% ML / 40% URL (ML Heavy, 40% URL)"),
+        (0.25, 0.25, 0.50, "25% DL / 25% ML / 50% URL (Dominant URL)"),
+        (0.35, 0.15, 0.50, "35% DL / 15% ML / 50% URL"),
+        (0.15, 0.35, 0.50, "15% DL / 35% ML / 50% URL"),
+
+        # --- High URL Weights (60% to 70%) ---
+        (0.20, 0.20, 0.60, "20% DL / 20% ML / 60% URL"),
+        (0.15, 0.15, 0.70, "15% DL / 15% ML / 70% URL"),
+    ]
+
+    # Rule-Based URL Threat Thresholds (theta_url) to test
+    url_rule_thresholds = [
+        0.20,  # VT Suspicious boundary
+        0.25,  # Single suspicious vendor
+        0.30,
+        0.35,
+        0.40,  # Single trusted vendor boost floor
+        0.45,  # VT Malicious boundary / Single malicious vendor
+        0.50,
+        0.60,
+        0.65,  # Multi-malicious boost floor
+        0.75,  # 3+ malicious vendors
+        0.85,  # 5+ malicious vendors
+        0.95,  # 10+ malicious vendors
+        1.00,  # 15+ malicious vendors / full consensus
     ]
 
     records = []
-    print(f"\n[*] Running exhaustive grid sweep across all thresholds ({len(thresholds)}), cases (6), and weights...")
+    print(f"\n[*] Running exhaustive grid sweep across all thresholds, weights, and URL decision models...")
 
     # =========================================================================
     # CASE 1: Text-Only Messages (N = 3,989)
@@ -238,18 +285,20 @@ def run_exhaustive_sweep():
                 "weights_dl": w_dl,
                 "weights_ml": w_ml,
                 "weights_url": 0.0,
+                "url_rule_threshold": "",
                 "weight_label": w_label,
                 "threshold": th,
                 **m
             })
 
     # =========================================================================
-    # CASE 2: URL Present, but Scan Pending / Timeout (N = 485)
+    # CASE 2: URL Subset - Evaluated Solely with Text Models (N = 485)
     # =========================================================================
     mask_c2 = has_url
     y_c2 = y_true[mask_c2]
     dl_c2 = dl_scores[mask_c2]
     ml_c2 = ml_scores[mask_c2]
+    url_c2 = url_scores[mask_c2]
 
     for w_dl, w_ml, w_label in two_layer_weights:
         ensemble_score = (w_dl * dl_c2) + (w_ml * ml_c2)
@@ -258,98 +307,57 @@ def run_exhaustive_sweep():
             m = compute_metrics(y_c2, y_pred)
             records.append({
                 "case_id": "Case 2",
-                "case_name": "URL Pending / Timeout",
+                "case_name": "URL Subset (Text Models Only)",
                 "weights_dl": w_dl,
                 "weights_ml": w_ml,
                 "weights_url": 0.0,
+                "url_rule_threshold": "",
                 "weight_label": w_label,
                 "threshold": th,
                 **m
             })
 
     # =========================================================================
-    # CASE 3A: URL Scan Completed - Clean URL (S_URL = 0.00) (N = 485)
+    # FULL DATASET: REAL VIRUSTOTAL 3-LAYER LINEAR ENSEMBLE (N = 4,474)
+    # URL score directly weighted in 3-layer decision without manual overrides
     # =========================================================================
-    for w_dl, w_ml, w_url, w_label in three_layer_weights:
-        # S_URL = 0.00
-        ensemble_score = (w_dl * dl_c2) + (w_ml * ml_c2) + (w_url * 0.00)
-        for th in thresholds:
-            y_pred = (ensemble_score >= th).astype(int)
-            m = compute_metrics(y_c2, y_pred)
-            records.append({
-                "case_id": "Case 3A",
-                "case_name": "Clean URL (S_URL = 0.00)",
-                "weights_dl": w_dl,
-                "weights_ml": w_ml,
-                "weights_url": w_url,
-                "weight_label": w_label,
-                "threshold": th,
-                **m
-            })
-
-    # =========================================================================
-    # CASE 3B: URL Scan Completed - Suspicious URL (S_URL = 0.30, floor 0.50) (N = 485)
-    # =========================================================================
-    for w_dl, w_ml, w_url, w_label in three_layer_weights:
-        # URL score = 0.30 with backend Suspicious floor of max(score, 0.50)
-        raw_score = (w_dl * dl_c2) + (w_ml * ml_c2) + (w_url * 0.30)
-        ensemble_score = np.maximum(raw_score, 0.50)
-        for th in thresholds:
-            y_pred = (ensemble_score >= th).astype(int)
-            m = compute_metrics(y_c2, y_pred)
-            records.append({
-                "case_id": "Case 3B",
-                "case_name": "Suspicious URL (S_URL = 0.30, floor 0.50)",
-                "weights_dl": w_dl,
-                "weights_ml": w_ml,
-                "weights_url": w_url,
-                "weight_label": w_label,
-                "threshold": th,
-                **m
-            })
-
-    # =========================================================================
-    # CASE 3C: URL Scan Completed - Malicious URL (S_URL = 0.85, override 0.85) (N = 485)
-    # =========================================================================
-    for w_dl, w_ml, w_url, w_label in three_layer_weights:
-        # Malicious URL override: max(score, 0.85)
-        raw_score = (w_dl * dl_c2) + (w_ml * ml_c2) + (w_url * 0.85)
-        ensemble_score = np.maximum(raw_score, 0.85)
-        for th in thresholds:
-            y_pred = (ensemble_score >= th).astype(int)
-            m = compute_metrics(y_c2, y_pred)
-            records.append({
-                "case_id": "Case 3C",
-                "case_name": "Malicious URL (S_URL = 0.85, override 0.85)",
-                "weights_dl": w_dl,
-                "weights_ml": w_ml,
-                "weights_url": w_url,
-                "weight_label": w_label,
-                "threshold": th,
-                **m
-            })
-
-    # =========================================================================
-    # FULL DATASET OVERALL SIMULATION (N = 4,474)
-    # Combines Case 1 (text-only) with realistic URL simulation on has_url
-    # =========================================================================
-    # On has_url samples, ground truth benign gets URL=0.0 (Clean), phishing gets URL=0.85 (Malicious)
-    simulated_url_scores = np.zeros(len(texts), dtype=np.float32)
-    for i in range(len(texts)):
-        if has_url[i]:
-            simulated_url_scores[i] = 0.85 if y_true[i] == 1 else 0.00
-
     for w_dl, w_ml, w_url, w_label in three_layer_weights:
         full_ensemble = np.zeros(len(texts), dtype=np.float32)
+        w_text_tot = w_dl + w_ml
         for i in range(len(texts)):
             if not has_url[i]:
-                # 2-layer re-normalization
-                w_tot = w_dl + w_ml
-                full_ensemble[i] = (w_dl * dl_scores[i] + w_ml * ml_scores[i]) / w_tot
+                full_ensemble[i] = (w_dl * dl_scores[i] + w_ml * ml_scores[i]) / w_text_tot
             else:
-                # 3-layer with malicious override if simulated_url_scores >= 0.45
-                s_lin = (w_dl * dl_scores[i]) + (w_ml * ml_scores[i]) + (w_url * simulated_url_scores[i])
-                if simulated_url_scores[i] >= 0.45:
+                full_ensemble[i] = (w_dl * dl_scores[i]) + (w_ml * ml_scores[i]) + (w_url * url_scores[i])
+
+        for th in thresholds:
+            y_pred = (full_ensemble >= th).astype(int)
+            m = compute_metrics(y_true, y_pred)
+            records.append({
+                "case_id": "Real VT 3-Layer Linear",
+                "case_name": "Real VT 3-Layer Linear Ensemble",
+                "weights_dl": w_dl,
+                "weights_ml": w_ml,
+                "weights_url": w_url,
+                "url_rule_threshold": "",
+                "weight_label": f"Linear | {w_label}",
+                "threshold": th,
+                **m
+            })
+
+    # =========================================================================
+    # FULL DATASET: REAL VIRUSTOTAL 3-LAYER ENSEMBLE WITH MALICIOUS OVERRIDE (N = 4,474)
+    # If real VT score >= 0.45, final ensemble score is floored at 0.85
+    # =========================================================================
+    for w_dl, w_ml, w_url, w_label in three_layer_weights:
+        full_ensemble = np.zeros(len(texts), dtype=np.float32)
+        w_text_tot = w_dl + w_ml
+        for i in range(len(texts)):
+            if not has_url[i]:
+                full_ensemble[i] = (w_dl * dl_scores[i] + w_ml * ml_scores[i]) / w_text_tot
+            else:
+                s_lin = (w_dl * dl_scores[i]) + (w_ml * ml_scores[i]) + (w_url * url_scores[i])
+                if url_scores[i] >= 0.45:
                     full_ensemble[i] = max(s_lin, 0.85)
                 else:
                     full_ensemble[i] = s_lin
@@ -358,19 +366,58 @@ def run_exhaustive_sweep():
             y_pred = (full_ensemble >= th).astype(int)
             m = compute_metrics(y_true, y_pred)
             records.append({
-                "case_id": "Full Population",
-                "case_name": "Full Dataset Realistic Ensemble",
+                "case_id": "Real VT 3-Layer Override",
+                "case_name": "Real VT 3-Layer with Malicious Override",
                 "weights_dl": w_dl,
                 "weights_ml": w_ml,
                 "weights_url": w_url,
-                "weight_label": w_label,
+                "url_rule_threshold": 0.45,
+                "weight_label": f"Override (>=0.45->0.85) | {w_label}",
                 "threshold": th,
                 **m
             })
 
     # =========================================================================
-    # PURE DL STANDALONE (FULL DATASET, N = 4,474)
-    # Server CNN-BiGRU deep learning model alone without any ML or URL
+    # FULL DATASET: RULE-BASED URL OVERRIDE ARCHITECTURE (N = 4,474)
+    # URL is NOT part of the linear ensemble weights.
+    # Text is evaluated via 2-layer ensemble: (w_dl * DL + w_ml * ML).
+    # If message has URL and URL threat score >= theta_url -> PREDICT HARMFUL (1).
+    # Else -> PREDICT (Text Ensemble >= threshold).
+    # =========================================================================
+    rule_base_text_configs = [
+        (0.50, 0.50, "50% DL / 50% ML Text Base"),
+        (round(2.0/3.0, 4), round(1.0/3.0, 4), "66.7% DL / 33.3% ML Text Base"),
+        (round(1.0/3.0, 4), round(2.0/3.0, 4), "33.3% DL / 66.7% ML Text Base"),
+        (0.75, 0.25, "75% DL / 25% ML Text Base"),
+        (0.25, 0.75, "25% DL / 75% ML Text Base"),
+        (1.00, 0.00, "100% DL Text Base"),
+        (0.00, 1.00, "100% ML Text Base"),
+    ]
+
+    for w_dl, w_ml, t_label in rule_base_text_configs:
+        text_score = (w_dl * dl_scores) + (w_ml * ml_scores)
+
+        for theta_url in url_rule_thresholds:
+            url_triggered = (has_url & (url_scores >= theta_url))
+
+            for th in thresholds:
+                # Rule: Automatic Harmful if URL trigger fires, otherwise follow text threshold
+                y_pred = (url_triggered | (text_score >= th)).astype(int)
+                m = compute_metrics(y_true, y_pred)
+                records.append({
+                    "case_id": "Rule-Based URL Override",
+                    "case_name": f"Rule-Based Override (URL >= {theta_url:.2f} -> Harmful)",
+                    "weights_dl": w_dl,
+                    "weights_ml": w_ml,
+                    "weights_url": 0.0,
+                    "url_rule_threshold": theta_url,
+                    "weight_label": f"Rule (URL>={theta_url:.2f}) + [{t_label}]",
+                    "threshold": th,
+                    **m
+                })
+
+    # =========================================================================
+    # STANDALONE MODELS (FULL DATASET, N = 4,474)
     # =========================================================================
     for th in thresholds:
         y_pred = (dl_scores >= th).astype(int)
@@ -381,15 +428,12 @@ def run_exhaustive_sweep():
             "weights_dl": 1.0,
             "weights_ml": 0.0,
             "weights_url": 0.0,
+            "url_rule_threshold": "",
             "weight_label": "100% DL (Pure DL)",
             "threshold": th,
             **m
         })
 
-    # =========================================================================
-    # PURE ML STANDALONE (FULL DATASET, N = 4,474)
-    # Mobile Local RF+XGBoost model alone without any DL or URL
-    # =========================================================================
     for th in thresholds:
         y_pred = (ml_scores >= th).astype(int)
         m = compute_metrics(y_true, y_pred)
@@ -399,6 +443,7 @@ def run_exhaustive_sweep():
             "weights_dl": 0.0,
             "weights_ml": 1.0,
             "weights_url": 0.0,
+            "url_rule_threshold": "",
             "weight_label": "100% ML (Pure ML)",
             "threshold": th,
             **m
@@ -408,8 +453,8 @@ def run_exhaustive_sweep():
     output_path = Path(output_csv)
     fieldnames = [
         "case_id", "case_name", "weight_label", "weights_dl", "weights_ml", "weights_url",
-        "threshold", "accuracy", "precision", "recall", "specificity", "f1", "youden_j",
-        "fpr", "fnr", "cost_index", "tp", "tn", "fp", "fn", "total_samples"
+        "url_rule_threshold", "threshold", "accuracy", "precision", "recall", "specificity",
+        "f1", "youden_j", "fpr", "fnr", "cost_index", "tp", "tn", "fp", "fn", "total_samples"
     ]
 
     with output_path.open("w", newline="", encoding="utf-8") as f:
@@ -424,9 +469,9 @@ def run_exhaustive_sweep():
 
 
 def print_leaderboard(records: List[Dict[str, Any]]):
-    print("=" * 90)
-    print(" LEADERBOARD: TOP-PERFORMING CONFIGURATIONS BY CASE")
-    print("=" * 90)
+    print("=" * 105)
+    print(" LEADERBOARD: TOP-PERFORMING CONFIGURATIONS BY ARCHITECTURE & CASE")
+    print("=" * 105)
 
     unique_cases = list(dict.fromkeys(r["case_id"] for r in records))
 
@@ -435,90 +480,120 @@ def print_leaderboard(records: List[Dict[str, Any]]):
         cname = case_records[0]["case_name"]
         total_n = case_records[0]["total_samples"]
 
-        # Best Youden J (balanced sensitivity + specificity)
-        best_j = max(case_records, key=lambda x: (x["youden_j"], x["f1"]))
-        # Best F1
+        best_acc = max(case_records, key=lambda x: (x["accuracy"], x["f1"]))
         best_f1 = max(case_records, key=lambda x: (x["f1"], x["youden_j"]))
-        # Best High-Precision (Threshold >= 0.80)
-        high_prec_pool = [r for r in case_records if r["threshold"] >= 0.80]
-        best_hp = max(high_prec_pool, key=lambda x: x["precision"]) if high_prec_pool else None
+        best_j = max(case_records, key=lambda x: (x["youden_j"], x["f1"]))
+        best_cost = min(case_records, key=lambda x: x["cost_index"])
 
-        print(f"\n[{cid}: {cname}] (N = {total_n:,})")
-        print(f"  * BEST BALANCED (Youden's J):")
-        print(f"    - Weight:    {best_j['weight_label']}")
-        print(f"    - Threshold: {best_j['threshold']:.2f}")
-        print(f"    - Metrics:   Youden J = {best_j['youden_j']:.4f} | Recall = {best_j['recall']*100:.2f}% | Prec = {best_j['precision']*100:.2f}% | F1 = {best_j['f1']:.4f}")
-        print(f"    - Errors:    FP = {best_j['fp']} | FN = {best_j['fn']}")
+        print(f"\n[{cid}] (N = {total_n:,})")
+        print(f"  * BEST ACCURACY:")
+        print(f"    - Weight / Rule: {best_acc['weight_label']}")
+        print(f"    - Threshold:     {best_acc['threshold']:.2f}")
+        print(f"    - Metrics:       Acc = {best_acc['accuracy']*100:.2f}% | F1 = {best_acc['f1']:.4f} | Prec = {best_acc['precision']*100:.2f}% | Recall = {best_acc['recall']*100:.2f}%")
+        print(f"    - Errors:        FP = {best_acc['fp']} | FN = {best_acc['fn']}")
 
         print(f"  * BEST F1 HARMONIC:")
-        print(f"    - Weight:    {best_f1['weight_label']}")
-        print(f"    - Threshold: {best_f1['threshold']:.2f}")
-        print(f"    - Metrics:   F1 = {best_f1['f1']:.4f} | Recall = {best_f1['recall']*100:.2f}% | Prec = {best_f1['precision']*100:.2f}%")
+        print(f"    - Weight / Rule: {best_f1['weight_label']}")
+        print(f"    - Threshold:     {best_f1['threshold']:.2f}")
+        print(f"    - Metrics:       F1 = {best_f1['f1']:.4f} | Acc = {best_f1['accuracy']*100:.2f}% | Youden J = {best_f1['youden_j']:.4f}")
 
-        if best_hp:
-            print(f"  * BEST HIGH-PRECISION (Strict Harmful Cutoff >= 0.80):")
-            print(f"    - Weight:    {best_hp['weight_label']}")
-            print(f"    - Threshold: {best_hp['threshold']:.2f}")
-            print(f"    - Metrics:   Precision = {best_hp['precision']*100:.2f}% | Recall = {best_hp['recall']*100:.2f}% | FP = {best_hp['fp']}")
+        print(f"  * LOWEST COST INDEX (Missing Phishing is 5x False Alarm):")
+        print(f"    - Weight / Rule: {best_cost['weight_label']}")
+        print(f"    - Threshold:     {best_cost['threshold']:.2f}")
+        print(f"    - Cost Index:    {best_cost['cost_index']:.4f} (FP = {best_cost['fp']}, FN = {best_cost['fn']})")
 
 
-def print_standalone_comparison(records: List[Dict[str, Any]]):
-    print("\n" + "=" * 105)
-    print(" DIRECT BENCHMARK: PURE ML vs. PURE DL vs. MULTI-LAYER ENSEMBLE (N = 4,474)")
-    print("=" * 105)
+def print_url_architecture_comparison(records: List[Dict[str, Any]]):
+    print("\n" + "=" * 115)
+    print(" COMPREHENSIVE ARCHITECTURE BENCHMARK: LINEAR WEIGHTED vs. RULE-BASED OVERRIDE vs. STANDALONE")
+    print("=" * 115)
 
-    pure_ml = [r for r in records if r["case_id"] == "Pure ML Standalone"]
     pure_dl = [r for r in records if r["case_id"] == "Pure DL Standalone"]
-    ensemble = [r for r in records if r["case_id"] == "Full Population" and "50% ML / 25% DL / 25% URL" in r["weight_label"]]
+    pure_ml = [r for r in records if r["case_id"] == "Pure ML Standalone"]
+    linear_vt = [r for r in records if r["case_id"] == "Real VT 3-Layer Linear"]
+    override_vt = [r for r in records if r["case_id"] == "Real VT 3-Layer Override"]
+    rule_override = [r for r in records if r["case_id"] == "Rule-Based URL Override"]
 
-    def get_peak(recs):
-        return max(recs, key=lambda x: float(x["f1"]))
+    def peak(recs):
+        return max(recs, key=lambda x: (x["f1"], x["accuracy"]))
 
-    def get_at_th(recs, th):
-        matches = [r for r in recs if abs(float(r["threshold"]) - th) < 1e-4]
-        return matches[0] if matches else None
-
-    header = f"{'Configuration':<32} | {'Th':<6} | {'Accuracy':<8} | {'Precision':<9} | {'Recall':<8} | {'F1':<7} | {'FP':<4} | {'FN':<4}"
+    header = f"{'Architecture':<40} | {'Optimal Config / Rule':<38} | {'Th':<5} | {'Acc':<7} | {'Prec':<7} | {'Recall':<7} | {'F1':<7} | {'FP':<4} | {'FN':<4}"
     print(header)
     print("-" * len(header))
 
     models = [
-        ("Pure DL Standalone (CNN-BiGRU)", pure_dl),
-        ("Pure ML Standalone (RF + XGB)", pure_ml),
-        ("Multi-Layer Ensemble (Updated)", ensemble)
+        ("Pure DL Standalone (CNN-BiGRU)", peak(pure_dl)),
+        ("Pure ML Standalone (RF + XGB)", peak(pure_ml)),
+        ("Real VT 3-Layer Linear Ensemble", peak(linear_vt)),
+        ("Real VT 3-Layer with Malicious Override", peak(override_vt)),
+        ("Rule-Based URL Override (Decoupled)", peak(rule_override)),
     ]
 
-    print("\n--- Peak F1 Performance ---")
-    for name, recs in models:
-        p = get_peak(recs)
+    for name, p in models:
+        lbl = p["weight_label"][:38]
+        th = f"{p['threshold']:.2f}"
         acc = f"{p['accuracy']*100:.2f}%"
         prec = f"{p['precision']*100:.2f}%"
         rec = f"{p['recall']*100:.2f}%"
         f1 = f"{p['f1']:.4f}"
-        print(f"{name:<32} | {p['threshold']:<6.2f} | {acc:<8} | {prec:<9} | {rec:<8} | {f1:<7} | {p['fp']:<4} | {p['fn']:<4}")
+        print(f"{name:<40} | {lbl:<38} | {th:<5} | {acc:<7} | {prec:<7} | {rec:<7} | {f1:<7} | {p['fp']:<4} | {p['fn']:<4}")
 
-    print("\n--- At Production Suspicious Cutoff (Threshold = 0.65) ---")
-    for name, recs in models:
-        p = get_at_th(recs, 0.65)
-        if p:
-            acc = f"{p['accuracy']*100:.2f}%"
-            prec = f"{p['precision']*100:.2f}%"
-            rec = f"{p['recall']*100:.2f}%"
-            f1 = f"{p['f1']:.4f}"
-            print(f"{name:<32} | {p['threshold']:<6.2f} | {acc:<8} | {prec:<9} | {rec:<8} | {f1:<7} | {p['fp']:<4} | {p['fn']:<4}")
+    print("\n" + "-" * 115)
+    print(" RULE-BASED URL OVERRIDE: PERFORMANCE ACROSS DIFFERENT URL THREAT THRESHOLDS (theta_url)")
+    print(" (With 50% DL / 50% ML text ensemble base at its peak decision threshold)")
+    print("-" * 115)
 
-    print("\n--- At Production Harmful Cutoff (Threshold = 0.85) ---")
-    for name, recs in models:
-        p = get_at_th(recs, 0.85)
-        if p:
-            acc = f"{p['accuracy']*100:.2f}%"
-            prec = f"{p['precision']*100:.2f}%"
-            rec = f"{p['recall']*100:.2f}%"
-            f1 = f"{p['f1']:.4f}"
-            print(f"{name:<32} | {p['threshold']:<6.2f} | {acc:<8} | {prec:<9} | {rec:<8} | {f1:<7} | {p['fp']:<4} | {p['fn']:<4}")
+    base_rule_recs = [r for r in rule_override if "50% DL / 50% ML" in r["weight_label"]]
+    unique_thetas = sorted(list(set(r["url_rule_threshold"] for r in base_rule_recs)))
+
+    sub_header = f"{'URL Threshold (theta_url)':<26} | {'Peak Text Th':<13} | {'Accuracy':<9} | {'Precision':<10} | {'Recall':<9} | {'F1':<7} | {'FP':<4} | {'FN':<4} | {'Notes'}"
+    print(sub_header)
+    print("-" * 115)
+
+    for th_u in unique_thetas:
+        sub = [r for r in base_rule_recs if abs(r["url_rule_threshold"] - th_u) < 1e-4]
+        best_sub = max(sub, key=lambda x: (x["f1"], x["accuracy"]))
+        note = ""
+        if th_u == 0.20:
+            note = "Catches all VT suspicious & above"
+        elif th_u == 0.45:
+            note = "VT Malicious cutoff / Single vendor detection"
+        elif th_u == 0.65:
+            note = "Multi-vendor consensus / high-confidence"
+        elif th_u == 0.85:
+            note = "Severe consensus (5+ vendors)"
+        elif th_u == 1.00:
+            note = "15+ vendors consensus"
+
+        print(f"URL >= {th_u:<20.2f} | {best_sub['threshold']:<13.2f} | {best_sub['accuracy']*100:<8.2f}% | {best_sub['precision']*100:<9.2f}% | {best_sub['recall']*100:<8.2f}% | {best_sub['f1']:<7.4f} | {best_sub['fp']:<4} | {best_sub['fn']:<4} | {note}")
+
+
+def print_url_weight_circumstances(records: List[Dict[str, Any]]):
+    print("\n" + "=" * 115)
+    print(" CIRCUMSTANCE ANALYSIS: VARYING THE URL ENSEMBLE WEIGHT (w_URL) IN 3-LAYER ENSEMBLE")
+    print(" (Evaluated with Balanced Text 50/50 split across different w_URL values)")
+    print("=" * 115)
+
+    linear_recs = [r for r in records if r["case_id"] == "Real VT 3-Layer Linear"]
+    header = f"{'w_URL (URL Weight)':<22} | {'w_DL':<6} | {'w_ML':<6} | {'Peak Th':<8} | {'Accuracy':<9} | {'Precision':<10} | {'Recall':<9} | {'F1':<7} | {'FP':<4} | {'FN':<4}"
+    print(header)
+    print("-" * len(header))
+
+    # Pick representative URL weights
+    target_url_weights = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.3333, 0.40, 0.50, 0.60, 0.70]
+    for w_u in target_url_weights:
+        # Filter for roughly equal DL and ML weights
+        matches = [
+            r for r in linear_recs
+            if abs(r["weights_url"] - w_u) < 0.015 and abs(r["weights_dl"] - r["weights_ml"]) < 0.05
+        ]
+        if matches:
+            best = max(matches, key=lambda x: (x["f1"], x["accuracy"]))
+            print(f"{w_u*100:<5.1f}% ({w_u:.2f}){'':<9} | {best['weights_dl']:<6.3f} | {best['weights_ml']:<6.3f} | {best['threshold']:<8.2f} | {best['accuracy']*100:<8.2f}% | {best['precision']*100:<9.2f}% | {best['recall']*100:<8.2f}% | {best['f1']:<7.4f} | {best['fp']:<4} | {best['fn']:<4}")
 
 
 if __name__ == "__main__":
     records = run_exhaustive_sweep()
     print_leaderboard(records)
-    print_standalone_comparison(records)
+    print_url_architecture_comparison(records)
+    print_url_weight_circumstances(records)

@@ -1,0 +1,2312 @@
+{
+  "https://shp.ee/mvbcukc": {
+    "has_url": true,
+    "extracted_url": "https://shp.ee/mvbcukc",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.10000000000004,
+    "contributions": []
+  },
+  "https://shp.ee/c2eni6k": {
+    "has_url": true,
+    "extracted_url": "https://shp.ee/c2eni6k",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.10000000000004,
+    "contributions": []
+  },
+  "https://winplus8.icu": {
+    "has_url": true,
+    "extracted_url": "https://WinPlus8.icu",
+    "score": 0.4,
+    "verdict": "suspicious",
+    "total_weight": 30.300000000000036,
+    "contributions": [
+      "alphaMountain.ai (suspicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://smrt.ph/getsmartapp": {
+    "has_url": true,
+    "extracted_url": "https://smrt.ph/GetSmartApp",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.50000000000004,
+    "contributions": []
+  },
+  "https://www.tntph.com/pages/anibersaya2025": {
+    "has_url": true,
+    "extracted_url": "https://www.tntph.com/Pages/Anibersaya2025",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.10000000000004,
+    "contributions": []
+  },
+  "https://smart.com.ph/shopmax": {
+    "has_url": true,
+    "extracted_url": "https://smart.com.ph/shopmax",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.80000000000004,
+    "contributions": []
+  },
+  "https://smart.com.ph/googleone": {
+    "has_url": true,
+    "extracted_url": "https://smart.com.ph/googleone",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.80000000000004,
+    "contributions": []
+  },
+  "https://smart.iglooinsure.com/": {
+    "has_url": true,
+    "extracted_url": "https://smart.iglooinsure.com/",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.50000000000004,
+    "contributions": []
+  },
+  "https://tntph.com/pp24tncdpn": {
+    "has_url": true,
+    "extracted_url": "https://tntph.com/pp24tncdpn",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.10000000000004,
+    "contributions": []
+  },
+  "https://smart.com.ph/nbapass": {
+    "has_url": true,
+    "extracted_url": "https://smart.com.ph/NBApass",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.80000000000004,
+    "contributions": []
+  },
+  "https://smart.com.ph/ytpremium": {
+    "has_url": true,
+    "extracted_url": "https://smart.com.ph/ytpremium",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.80000000000004,
+    "contributions": []
+  },
+  "https://smrt.ph/playtrickortreatgame": {
+    "has_url": true,
+    "extracted_url": "https://smrt.ph/PlayTrickorTreatGame",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.80000000000004,
+    "contributions": []
+  },
+  "https://smrt.ph/sma919": {
+    "has_url": true,
+    "extracted_url": "https://smrt.ph/SMA919",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.80000000000004,
+    "contributions": []
+  },
+  "http://www.facebook.com/tingogpartylist": {
+    "has_url": true,
+    "extracted_url": "http://www.facebook.com/TingogPartyList",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://www.facebook.com/yeddaromualdez": {
+    "has_url": true,
+    "extracted_url": "http://www.facebook.com/YeddaRomualdez",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://www.facebook.com/judeaacidre": {
+    "has_url": true,
+    "extracted_url": "http://www.facebook.com/JudeAAcidre",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://bagong-pilipinas-serbisyo.s3.ap-southeast-1.amazonaws.com/id_card/rsdx7.png": {
+    "has_url": true,
+    "extracted_url": "https://bagong-pilipinas-serbisyo.s3.ap-southeast-1.amazonaws.com/id_card/rsdX7.png",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://facebook.com/bagongpilipinasserbisyofair": {
+    "has_url": true,
+    "extracted_url": "http://facebook.com/BagongPilipinasSerbisyoFair",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.80000000000004,
+    "contributions": []
+  },
+  "https://isiptayo.s3.ap-southeast-1.amazonaws.com/id_card/idav9c35m.png": {
+    "has_url": true,
+    "extracted_url": "https://isiptayo.s3.ap-southeast-1.amazonaws.com/id_card/IDAV9C35M.png",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://prf.hn/l/g9dld3p": {
+    "has_url": true,
+    "extracted_url": "https://prf.hn/l/G9dLD3p",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.80000000000004,
+    "contributions": []
+  },
+  "https://official.maya.ph/3xmf/mehk8mj3": {
+    "has_url": true,
+    "extracted_url": "https://official.maya.ph/3xMF/mehk8mj3",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://smart.com.ph/pages/olympics": {
+    "has_url": true,
+    "extracted_url": "https://smart.com.ph/Pages/Olympics",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.50000000000004,
+    "contributions": []
+  },
+  "https://official.maya.ph/3xmf/smartsignup": {
+    "has_url": true,
+    "extracted_url": "https://official.maya.ph/3xMF/SmartSignUp",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.50000000000004,
+    "contributions": []
+  },
+  "https://official.maya.ph/3xmf/vk86la9h": {
+    "has_url": true,
+    "extracted_url": "https://official.maya.ph/3xMF/vk86la9h",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://smrt.ph/tnttiktoksaya50": {
+    "has_url": true,
+    "extracted_url": "https://smrt.ph/TNTTikTokSaya50",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://go.skyro.ph/p93auj": {
+    "has_url": true,
+    "extracted_url": "https://go.skyro.ph/P93auj",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.700000000000042,
+    "contributions": []
+  },
+  "http://www.hh88hg.website": {
+    "has_url": true,
+    "extracted_url": "http://www.hh88hg.website",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://dff9dfd.guru": {
+    "has_url": true,
+    "extracted_url": "https://dff9dfd.guru",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.700000000000042,
+    "contributions": []
+  },
+  "https://sugarplay0.icu": {
+    "has_url": true,
+    "extracted_url": "https://Sugarplay0.icu",
+    "score": 0.4,
+    "verdict": "suspicious",
+    "total_weight": 30.300000000000036,
+    "contributions": [
+      "alphaMountain.ai (suspicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://epicwin10.icu": {
+    "has_url": true,
+    "extracted_url": "https://EpicWin10.icu",
+    "score": 0.4,
+    "verdict": "suspicious",
+    "total_weight": 30.300000000000036,
+    "contributions": [
+      "alphaMountain.ai (suspicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://winplus9.icu": {
+    "has_url": true,
+    "extracted_url": "https://winplus9.icu",
+    "score": 0.4,
+    "verdict": "suspicious",
+    "total_weight": 30.900000000000038,
+    "contributions": [
+      "alphaMountain.ai (suspicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://sugarplay3.icu": {
+    "has_url": true,
+    "extracted_url": "https://Sugarplay3.icu",
+    "score": 0.4,
+    "verdict": "suspicious",
+    "total_weight": 30.600000000000037,
+    "contributions": [
+      "alphaMountain.ai (suspicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "http://winplus3.icu": {
+    "has_url": true,
+    "extracted_url": "http://winplus3.icu",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.700000000000042,
+    "contributions": []
+  },
+  "https://gojackpot5.icu": {
+    "has_url": true,
+    "extracted_url": "https://GoJackpot5.icu",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.600000000000037,
+    "contributions": [
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "http://www.gomo.ph/faq": {
+    "has_url": true,
+    "extracted_url": "http://www.gomo.ph/faq",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "https://epicwin1.icu": {
+    "has_url": true,
+    "extracted_url": "https://EpicWin1.icu",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.700000000000042,
+    "contributions": [
+      "CRDF (malicious)"
+    ]
+  },
+  "https://m.fk775.space": {
+    "has_url": true,
+    "extracted_url": "https://m.fk775.space",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.700000000000042,
+    "contributions": []
+  },
+  "https://splay.icu": {
+    "has_url": true,
+    "extracted_url": "https://Splay.icu",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "https://ersjjh.support": {
+    "has_url": true,
+    "extracted_url": "https://ersjjh.support",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.300000000000036,
+    "contributions": [
+      "Criminal IP (malicious)",
+      "Gridinsoft (suspicious)"
+    ]
+  },
+  "https://gojackpot1.icu": {
+    "has_url": true,
+    "extracted_url": "https://GoJackpot1.icu",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 31.80000000000004,
+    "contributions": [
+      "Bfore.Ai PreCrime (suspicious)",
+      "CRDF (malicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://gojackpot1.vegas": {
+    "has_url": true,
+    "extracted_url": "https://GoJackpot1.vegas",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "https://winplus.vegas": {
+    "has_url": true,
+    "extracted_url": "https://Winplus.vegas",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "https://g1.onelink.me/kjve/djz3kmx3": {
+    "has_url": true,
+    "extracted_url": "https://g1.onelink.me/KJve/djz3kmx3",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://getrich.fyi/plmmm": {
+    "has_url": true,
+    "extracted_url": "https://getrich.fyi/plmmm",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://bit.ly/gomoreferral": {
+    "has_url": true,
+    "extracted_url": "http://bit.ly/GOMOReferral",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Gridinsoft (malicious)",
+      "AILabs (MONITORAPP) (suspicious)"
+    ]
+  },
+  "https://bit.ly/gomofaqtopic": {
+    "has_url": true,
+    "extracted_url": "https://bit.ly/GOMOFAQTopic",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Gridinsoft (malicious)",
+      "AILabs (MONITORAPP) (suspicious)"
+    ]
+  },
+  "http://www.okdph.com": {
+    "has_url": true,
+    "extracted_url": "http://www.Okdph.com",
+    "score": 0.85,
+    "verdict": "malicious",
+    "total_weight": 30.300000000000036,
+    "contributions": [
+      "Lionic (malicious)",
+      "BitDefender (malicious)",
+      "CyRadar (malicious)",
+      "Fortinet (malicious)",
+      "G-Data (malicious)",
+      "Kaspersky (malicious)",
+      "Sophos (malicious)",
+      "Webroot (malicious)",
+      "Forcepoint ThreatSeeker (malicious)"
+    ]
+  },
+  "https://risu.io/aedwp": {
+    "has_url": true,
+    "extracted_url": "https://risu.io/aeDwP",
+    "score": 0.85,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Gridinsoft (malicious)",
+      "ADMINUSLabs (malicious)",
+      "Sophos (malicious)",
+      "alphaMountain.ai (malicious)",
+      "SafeToOpen (malicious)"
+    ]
+  },
+  "http://trdk.xyz": {
+    "has_url": true,
+    "extracted_url": "http://trdk.xyz",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.700000000000042,
+    "contributions": [
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://globeone.onelink.me/ej7i/g1sms": {
+    "has_url": true,
+    "extracted_url": "https://globeone.onelink.me/ej7I/G1SMS",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.10000000000004,
+    "contributions": []
+  },
+  "http://hhk88.one": {
+    "has_url": true,
+    "extracted_url": "http://hhk88.one",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 30.700000000000042,
+    "contributions": [
+      "Avira (malicious)"
+    ]
+  },
+  "http://dchh.shop": {
+    "has_url": true,
+    "extracted_url": "http://dchh.shop",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "https://sg7773.com": {
+    "has_url": true,
+    "extracted_url": "https://sg7773.com",
+    "score": 0.75,
+    "verdict": "malicious",
+    "total_weight": 30.300000000000036,
+    "contributions": [
+      "alphaMountain.ai (suspicious)",
+      "BitDefender (malicious)",
+      "G-Data (malicious)",
+      "Kaspersky (malicious)"
+    ]
+  },
+  "https://pay777.pro/": {
+    "has_url": true,
+    "extracted_url": "https://pay777.pro/",
+    "score": 0.75,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000038,
+    "contributions": [
+      "alphaMountain.ai (suspicious)",
+      "BitDefender (malicious)",
+      "G-Data (malicious)",
+      "Kaspersky (malicious)"
+    ]
+  },
+  "http://vhwlpj.com": {
+    "has_url": true,
+    "extracted_url": "http://vhwlpj.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 29.80000000000004,
+    "contributions": []
+  },
+  "http://ccb8.xyz": {
+    "has_url": true,
+    "extracted_url": "http://ccb8.xyz",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.10000000000004,
+    "contributions": []
+  },
+  "https://ntc.gov.ph": {
+    "has_url": true,
+    "extracted_url": "HTTPS://NTC.GOV.PH",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.600000000000037,
+    "contributions": []
+  },
+  "http://bit.ly/gomomocreds": {
+    "has_url": true,
+    "extracted_url": "http://bit.ly/GOMOMoCreds",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Gridinsoft (malicious)",
+      "AILabs (MONITORAPP) (suspicious)"
+    ]
+  },
+  "https://w19.ltd": {
+    "has_url": true,
+    "extracted_url": "https://w19.ltd",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 29.80000000000004,
+    "contributions": []
+  },
+  "https://v.ht/sm-xfn": {
+    "has_url": true,
+    "extracted_url": "https://v.ht/SM-XfN",
+    "score": 0.75,
+    "verdict": "malicious",
+    "total_weight": 30.40000000000004,
+    "contributions": [
+      "Trustwave (malicious)",
+      "CyRadar (malicious)",
+      "Yandex Safebrowsing (malicious)"
+    ]
+  },
+  "https://v.ht/sm-kwu": {
+    "has_url": true,
+    "extracted_url": "https://v.ht/SM-kWu",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Gridinsoft (malicious)"
+    ]
+  },
+  "https://v.ht/sm-qx0": {
+    "has_url": true,
+    "extracted_url": "https://v.ht/SM-QX0",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Gridinsoft (malicious)"
+    ]
+  },
+  "http://yy777c.com": {
+    "has_url": true,
+    "extracted_url": "http://YY777c.com",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.600000000000037,
+    "contributions": [
+      "Gridinsoft (suspicious)"
+    ]
+  },
+  "https://v.ht/sm-wa0": {
+    "has_url": true,
+    "extracted_url": "https://v.ht/SM-WA0",
+    "score": 0.75,
+    "verdict": "malicious",
+    "total_weight": 30.40000000000004,
+    "contributions": [
+      "Trustwave (malicious)",
+      "CyRadar (malicious)",
+      "Yandex Safebrowsing (malicious)"
+    ]
+  },
+  "http://bit.ly/gomoshop": {
+    "has_url": true,
+    "extracted_url": "http://bit.ly/GOMOShop",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.90000000000005,
+    "contributions": [
+      "Gridinsoft (malicious)",
+      "AILabs (MONITORAPP) (suspicious)"
+    ]
+  },
+  "http://www.y99o88.com": {
+    "has_url": true,
+    "extracted_url": "http://www.y99o88.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://tinyurl.com/2sk378zb": {
+    "has_url": true,
+    "extracted_url": "http://tinyurl.com/2sk378zb",
+    "score": 0.75,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "SOCRadar (malicious)",
+      "Chong Lua Dao (malicious)",
+      "SafeToOpen (malicious)"
+    ]
+  },
+  "http://www.sec.gov.ph": {
+    "has_url": true,
+    "extracted_url": "http://www.sec.gov.ph",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.600000000000037,
+    "contributions": []
+  },
+  "http://5s30c.com": {
+    "has_url": true,
+    "extracted_url": "http://5s30c.com",
+    "score": 0.4,
+    "verdict": "suspicious",
+    "total_weight": 30.600000000000037,
+    "contributions": [
+      "Gridinsoft (suspicious)",
+      "URLQuery (suspicious)"
+    ]
+  },
+  "https://sprl.in/bdoverification": {
+    "has_url": true,
+    "extracted_url": "https://sprl.in/BDOVerification",
+    "score": 1.0,
+    "verdict": "malicious",
+    "total_weight": 30.10000000000004,
+    "contributions": [
+      "Sophos (malicious)",
+      "Fortinet (malicious)",
+      "alphaMountain.ai (malicious)",
+      "Lionic (malicious)",
+      "Seclookup (malicious)",
+      "Heimdal Security (malicious)",
+      "CyRadar (malicious)",
+      "Emsisoft (malicious)",
+      "Webroot (malicious)",
+      "Avira (malicious)",
+      "AlphaSOC (malicious)",
+      "Viettel Threat Intelligence (malicious)",
+      "Kaspersky (malicious)",
+      "Netcraft (malicious)",
+      "Phishing Database (malicious)",
+      "BitDefender (malicious)",
+      "G-Data (malicious)",
+      "VIPRE (malicious)",
+      "SCUMWARE.org (malicious)"
+    ]
+  },
+  "https://v.ht/xw-s2t": {
+    "has_url": true,
+    "extracted_url": "https://v.ht/XW-S2T",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Gridinsoft (malicious)"
+    ]
+  },
+  "https://re422.buzz": {
+    "has_url": true,
+    "extracted_url": "https://re422.buzz",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://www.fse281.xyz": {
+    "has_url": true,
+    "extracted_url": "https://www.fse281.xyz",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 31.80000000000004,
+    "contributions": [
+      "Trustwave (malicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://sprl.in/appgcash": {
+    "has_url": true,
+    "extracted_url": "https://sprl.in/AppGCash",
+    "score": 0.85,
+    "verdict": "malicious",
+    "total_weight": 30.40000000000004,
+    "contributions": [
+      "Sophos (malicious)",
+      "CRDF (malicious)",
+      "Fortinet (malicious)",
+      "Lionic (malicious)",
+      "Seclookup (malicious)",
+      "Webroot (malicious)",
+      "Avira (malicious)",
+      "Viettel Threat Intelligence (malicious)",
+      "VIPRE (malicious)"
+    ]
+  },
+  "https://www.adfhg.xyz": {
+    "has_url": true,
+    "extracted_url": "https://www.adfhg.xyz",
+    "score": 0.4,
+    "verdict": "suspicious",
+    "total_weight": 30.600000000000037,
+    "contributions": [
+      "Gridinsoft (suspicious)",
+      "URLQuery (suspicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://gomogenesis.page.link/shop": {
+    "has_url": true,
+    "extracted_url": "https://gomogenesis.page.link/shop",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "https://www.gomo.ph/": {
+    "has_url": true,
+    "extracted_url": "https://www.gomo.ph/",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.300000000000036,
+    "contributions": []
+  },
+  "https://www.tgrt.buzz": {
+    "has_url": true,
+    "extracted_url": "https://www.tgrt.buzz",
+    "score": 0.4,
+    "verdict": "suspicious",
+    "total_weight": 30.300000000000036,
+    "contributions": [
+      "Gridinsoft (suspicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://gomogenesis.page.link/faq": {
+    "has_url": true,
+    "extracted_url": "https://gomogenesis.page.link/faq",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "https://www.sdfdi92.com": {
+    "has_url": true,
+    "extracted_url": "https://www.sdfdi92.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "http://pkmf.xyz": {
+    "has_url": true,
+    "extracted_url": "http://pkmf.xyz",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 22.95000000000002,
+    "contributions": []
+  },
+  "https://fa34.live": {
+    "has_url": true,
+    "extracted_url": "https://fa34.live",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://gamebet.li/yeo": {
+    "has_url": true,
+    "extracted_url": "https://gamebet.li/yeo",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://gamebet.li/g0g": {
+    "has_url": true,
+    "extracted_url": "https://gamebet.li/g0g",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://gamebet.li/qk0": {
+    "has_url": true,
+    "extracted_url": "https://gamebet.li/qk0",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://jl7778.ph": {
+    "has_url": true,
+    "extracted_url": "http://jl7778.ph",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.90000000000005,
+    "contributions": [
+      "LevelBlue (malicious)"
+    ]
+  },
+  "https://un253.buzz": {
+    "has_url": true,
+    "extracted_url": "https://un253.buzz",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "http://jl7779.ph": {
+    "has_url": true,
+    "extracted_url": "http://jl7779.ph",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.600000000000037,
+    "contributions": [
+      "CRDF (malicious)",
+      "Gridinsoft (suspicious)"
+    ]
+  },
+  "https://lo40.today": {
+    "has_url": true,
+    "extracted_url": "https://lo40.today",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://kl544.today": {
+    "has_url": true,
+    "extracted_url": "https://kl544.today",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 29.80000000000004,
+    "contributions": []
+  },
+  "https://yd434.xyz": {
+    "has_url": true,
+    "extracted_url": "https://yd434.xyz",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://yd434.info": {
+    "has_url": true,
+    "extracted_url": "https://yd434.info",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://mub.me/appsgcashlogin": {
+    "has_url": true,
+    "extracted_url": "https://mub.me/AppsGCashLogin",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 29.20000000000004,
+    "contributions": [
+      "Seclookup (malicious)",
+      "Xcitium Verdict Cloud (malicious)"
+    ]
+  },
+  "https://bm672.info": {
+    "has_url": true,
+    "extracted_url": "https://bm672.info",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://tntph.com/privacy": {
+    "has_url": true,
+    "extracted_url": "http://tntph.com/privacy",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.10000000000004,
+    "contributions": []
+  },
+  "https://www.d02k0d.com/?a=134851": {
+    "has_url": true,
+    "extracted_url": "https://www.d02k0d.com/?a=134851",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://ty9445.com/?a=74043": {
+    "has_url": true,
+    "extracted_url": "https://ty9445.com/?a=74043",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://www.hdg15uh.com": {
+    "has_url": true,
+    "extracted_url": "https://www.hdg15uh.com",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.40000000000004,
+    "contributions": [
+      "Bfore.Ai PreCrime (suspicious)"
+    ]
+  },
+  "https://www.aq1558.com/?a=101569": {
+    "has_url": true,
+    "extracted_url": "https://www.aq1558.com/?a=101569",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://www.ba11365.com/?a=102358": {
+    "has_url": true,
+    "extracted_url": "https://www.ba11365.com/?a=102358",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://www.taya3651.com/?a=101202": {
+    "has_url": true,
+    "extracted_url": "https://www.taya3651.com/?a=101202",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://smrt.ph/glaprivacy": {
+    "has_url": true,
+    "extracted_url": "http://smrt.ph/GLAprivacy",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://www.taya363.com/?a=102361": {
+    "has_url": true,
+    "extracted_url": "https://www.taya363.com/?a=102361",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://www.taya362.com/?a=101569": {
+    "has_url": true,
+    "extracted_url": "https://www.taya362.com/?a=101569",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://glbe.co/newglobeone": {
+    "has_url": true,
+    "extracted_url": "https://glbe.co/NewGlobeONE",
+    "score": 0.75,
+    "verdict": "malicious",
+    "total_weight": 30.600000000000037,
+    "contributions": [
+      "alphaMountain.ai (suspicious)",
+      "Cluster25 (malicious)",
+      "Fortinet (malicious)",
+      "Phishing Database (malicious)"
+    ]
+  },
+  "https://t.me/login/90934": {
+    "has_url": true,
+    "extracted_url": "https://t.me/login/90934",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.650000000000038,
+    "contributions": []
+  },
+  "http://smrt.ph/gigapoints": {
+    "has_url": true,
+    "extracted_url": "http://smrt.ph/gigapoints",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://95m.app": {
+    "has_url": true,
+    "extracted_url": "https://95M.App",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.400000000000038,
+    "contributions": []
+  },
+  "https://t.me/login/27873": {
+    "has_url": true,
+    "extracted_url": "https://t.me/login/27873",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 32.400000000000034,
+    "contributions": [
+      "CRDF (malicious)"
+    ]
+  },
+  "http://www.maya.ph/gigalifemaya": {
+    "has_url": true,
+    "extracted_url": "http://www.maya.ph/gigalifemaya",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Chong Lua Dao (malicious)"
+    ]
+  },
+  "https://smart.com.ph/help/prepaid": {
+    "has_url": true,
+    "extracted_url": "https://smart.com.ph/help/prepaid",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.90000000000005,
+    "contributions": []
+  },
+  "http://smrt.ph/gigalifeapp": {
+    "has_url": true,
+    "extracted_url": "http://smrt.ph/GigaLifeApp",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.10000000000004,
+    "contributions": []
+  },
+  "http://pxpfs4zn.uk5g1m.com/d1e7l?c=1": {
+    "has_url": true,
+    "extracted_url": "http://pxpfs4zn.uk5g1m.com/d1e7l?c=1",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://t.me/login/70405": {
+    "has_url": true,
+    "extracted_url": "https://t.me/login/70405",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.80000000000004,
+    "contributions": []
+  },
+  "http://mayaph.co/muryu29q": {
+    "has_url": true,
+    "extracted_url": "http://mayaph.co/MURyU29Q",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://t.me/login/53798": {
+    "has_url": true,
+    "extracted_url": "https://t.me/login/53798",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 31.80000000000004,
+    "contributions": [
+      "ArcSight Threat Intelligence (suspicious)"
+    ]
+  },
+  "http://yralk3.com": {
+    "has_url": true,
+    "extracted_url": "http://yralk3.com",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 29.80000000000004,
+    "contributions": [
+      "Bfore.Ai PreCrime (malicious)"
+    ]
+  },
+  "http://go.gcash.com/iglooonlineshopping": {
+    "has_url": true,
+    "extracted_url": "http://go.gcash.com/IglooOnlineShopping",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://lais7m.com": {
+    "has_url": true,
+    "extracted_url": "http://lais7m.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 29.80000000000004,
+    "contributions": []
+  },
+  "http://mayaph.co/c0rjlzlo": {
+    "has_url": true,
+    "extracted_url": "http://mayaph.co/c0RjLzlO",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 29.80000000000004,
+    "contributions": []
+  },
+  "https://fxtrade.onelink.me/ocgp/bwxxmns7": {
+    "has_url": true,
+    "extracted_url": "https://fxtrade.onelink.me/OCGP/bwxxmns7",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://t.me/login/43138": {
+    "has_url": true,
+    "extracted_url": "https://t.me/login/43138",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.400000000000038,
+    "contributions": []
+  },
+  "https://t.co/zpeqcrptpz": {
+    "has_url": true,
+    "extracted_url": "https://t.co/zpeQcRpTPz",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://mayaph.co/22julyload": {
+    "has_url": true,
+    "extracted_url": "http://mayaph.co/22JulyLoad",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://s.lazada.com.ph/s.uxheg": {
+    "has_url": true,
+    "extracted_url": "https://s.lazada.com.ph/s.UXHEg",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 29.50000000000004,
+    "contributions": []
+  },
+  "https://t.me/login/40921": {
+    "has_url": true,
+    "extracted_url": "https://t.me/login/40921",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 30.400000000000038,
+    "contributions": [
+      "Avira (malicious)"
+    ]
+  },
+  "https://www.maya.ph/earlyaccess": {
+    "has_url": true,
+    "extracted_url": "https://www.maya.ph/earlyaccess",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Chong Lua Dao (malicious)"
+    ]
+  },
+  "https://go.gcash.com/ginsuredengvid": {
+    "has_url": true,
+    "extracted_url": "https://go.gcash.com/GInsureDengVid",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://www.paymaya.com/app/shop": {
+    "has_url": true,
+    "extracted_url": "https://www.paymaya.com/app/shop",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 31.650000000000038,
+    "contributions": [
+      "Quttera (suspicious)"
+    ]
+  },
+  "https://pymy.co/bunvbvrh": {
+    "has_url": true,
+    "extracted_url": "https://pymy.co/bUNvbVRh",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://tntph.com/privacy-policy": {
+    "has_url": true,
+    "extracted_url": "http://tntph.com/privacy-policy",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.20000000000004,
+    "contributions": []
+  },
+  "https://official.paymaya.com/d0ec/e6d83ecc": {
+    "has_url": true,
+    "extracted_url": "https://official.paymaya.com/d0ec/e6d83ecc",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://official.paymaya.com/d0ec/41d7532a": {
+    "has_url": true,
+    "extracted_url": "https://official.paymaya.com/d0ec/41d7532a",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://www.gcash.com/promos/sanmigueloktoberfest20212": {
+    "has_url": true,
+    "extracted_url": "https://www.gcash.com/promos/sanmigueloktoberfest20212",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://gcashapp.page.link/gforest-landing-v1": {
+    "has_url": true,
+    "extracted_url": "https://gcashapp.page.link/gforest-landing-v1",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.450000000000035,
+    "contributions": []
+  },
+  "https://minepi.com/sethamiel": {
+    "has_url": true,
+    "extracted_url": "https://minepi.com/sethamiel",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Forcepoint ThreatSeeker (suspicious)",
+      "Chong Lua Dao (malicious)"
+    ]
+  },
+  "http://mdbx.io/n4tgtngi": {
+    "has_url": true,
+    "extracted_url": "http://mdbx.io/N4TgTngi",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://t.me/login/39512": {
+    "has_url": true,
+    "extracted_url": "https://t.me/login/39512",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.10000000000004,
+    "contributions": []
+  },
+  "https://go.gcash.com/onlinepurchase": {
+    "has_url": true,
+    "extracted_url": "https://go.gcash.com/onlinepurchase",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://gcashapp.page.link/gcredit": {
+    "has_url": true,
+    "extracted_url": "https://gcashapp.page.link/gcredit",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.650000000000038,
+    "contributions": []
+  },
+  "https://go.gcash.com/voucher": {
+    "has_url": true,
+    "extracted_url": "https://go.gcash.com/voucher",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://go.gcash.com/voucherpocket": {
+    "has_url": true,
+    "extracted_url": "https://go.gcash.com/voucherpocket",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.150000000000038,
+    "contributions": []
+  },
+  "https://7me.co/dl/etmc5ca": {
+    "has_url": true,
+    "extracted_url": "https://7me.co/dl/ETMC5cA",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Gridinsoft (suspicious)"
+    ]
+  },
+  "https://smrt.ph/smsspamwarning": {
+    "has_url": true,
+    "extracted_url": "https://smrt.ph/SMSspamWarning",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://smrt.ph/simtakeoveradvisory": {
+    "has_url": true,
+    "extracted_url": "https://smrt.ph/simtakeoveradvisory",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.650000000000038,
+    "contributions": []
+  },
+  "https://t.me/login/21538": {
+    "has_url": true,
+    "extracted_url": "https://t.me/login/21538",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 29.80000000000004,
+    "contributions": []
+  },
+  "https://official.paymaya.com/3xmf/cashin": {
+    "has_url": true,
+    "extracted_url": "https://official.paymaya.com/3xMF/CashIn",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://go.gcash.com/gpadala": {
+    "has_url": true,
+    "extracted_url": "https://go.gcash.com/GPadala",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.90000000000005,
+    "contributions": []
+  },
+  "https://official.paymaya.com/0zgc/sendmoneyweekend": {
+    "has_url": true,
+    "extracted_url": "https://official.paymaya.com/0zgc/SendMoneyWeekend",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://official.paymaya.com/0zgc/sendmoneychallenge": {
+    "has_url": true,
+    "extracted_url": "https://official.paymaya.com/0zgc/SendMoneyChallenge",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.450000000000035,
+    "contributions": []
+  },
+  "https://go.gcash.com/increasedlimits": {
+    "has_url": true,
+    "extracted_url": "https://go.gcash.com/increasedlimits",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.90000000000005,
+    "contributions": []
+  },
+  "https://official.paymaya.com/0zgc/sendmoneyaugust": {
+    "has_url": true,
+    "extracted_url": "https://official.paymaya.com/0zgc/SendMoneyAugust",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://t.me/login/71243": {
+    "has_url": true,
+    "extracted_url": "https://t.me/login/71243",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.250000000000036,
+    "contributions": []
+  },
+  "https://gcashapp.page.link/55k8": {
+    "has_url": true,
+    "extracted_url": "https://gcashapp.page.link/55K8",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 29.850000000000037,
+    "contributions": []
+  },
+  "https://tinyurl.com/bspyouthsummit": {
+    "has_url": true,
+    "extracted_url": "https://tinyurl.com/BSPYouthSummit",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.150000000000038,
+    "contributions": [
+      "Antiy-AVL (malicious)"
+    ]
+  },
+  "https://r2m.in/xdc_xr": {
+    "has_url": true,
+    "extracted_url": "https://r2m.in/xDC_xr",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://t.me/login/67511": {
+    "has_url": true,
+    "extracted_url": "https://t.me/login/67511",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.350000000000037,
+    "contributions": []
+  },
+  "https://www.paymaya.com/deals": {
+    "has_url": true,
+    "extracted_url": "https://www.paymaya.com/deals",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 31.650000000000038,
+    "contributions": [
+      "Quttera (suspicious)"
+    ]
+  },
+  "https://fb.me/1ostsvpjapjlytx": {
+    "has_url": true,
+    "extracted_url": "https://fb.me/1OSTSvpjAPjLYTX",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Chong Lua Dao (malicious)"
+    ]
+  },
+  "https://smartk.bond/rewards": {
+    "has_url": true,
+    "extracted_url": "https://smartk.bond/rewards",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.400000000000034,
+    "contributions": []
+  },
+  "https://lbpiaccess.com-ph.click/i-revoke": {
+    "has_url": true,
+    "extracted_url": "https://lbpiaccess.com-ph.click/i-revoke",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 32.10000000000004,
+    "contributions": [
+      "Fortinet (suspicious)",
+      "Seclookup (malicious)",
+      "Sophos (suspicious)"
+    ]
+  },
+  "https://smartst.click/rewards": {
+    "has_url": true,
+    "extracted_url": "https://smartst.click/rewards",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://smartlt.help/rewards": {
+    "has_url": true,
+    "extracted_url": "https://smartlt.help/rewards",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Kaspersky (malicious)"
+    ]
+  },
+  "https://smart1.cyou/rewards": {
+    "has_url": true,
+    "extracted_url": "https://smart1.cyou/rewards",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Sophos (malicious)"
+    ]
+  },
+  "https://smartan.help/rewards": {
+    "has_url": true,
+    "extracted_url": "https://smartan.help/rewards",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Kaspersky (malicious)"
+    ]
+  },
+  "https://globeci.cyou/rewards": {
+    "has_url": true,
+    "extracted_url": "https://globeci.cyou/rewards",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Kaspersky (malicious)"
+    ]
+  },
+  "https://smartnr.qpon/rewards": {
+    "has_url": true,
+    "extracted_url": "https://smartnr.qpon/rewards",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Kaspersky (malicious)"
+    ]
+  },
+  "https://smartei.bond/ph": {
+    "has_url": true,
+    "extracted_url": "https://smartei.bond/ph",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 32.10000000000004,
+    "contributions": [
+      "Fortinet (suspicious)",
+      "Trustwave (malicious)"
+    ]
+  },
+  "https://smartp.bond/ph": {
+    "has_url": true,
+    "extracted_url": "https://smartp.bond/ph",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 32.10000000000004,
+    "contributions": [
+      "Fortinet (suspicious)"
+    ]
+  },
+  "https://smartio.cyou/ph": {
+    "has_url": true,
+    "extracted_url": "https://smartio.cyou/ph",
+    "score": 0.75,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Kaspersky (malicious)",
+      "G-Data (malicious)",
+      "BitDefender (malicious)",
+      "Sophos (malicious)",
+      "LevelBlue (suspicious)",
+      "alphaMountain.ai (suspicious)"
+    ]
+  },
+  "https://smartln.shop/rewards": {
+    "has_url": true,
+    "extracted_url": "https://smartln.shop/rewards",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "ESET (malicious)",
+      "Webroot (malicious)"
+    ]
+  },
+  "https://bdo-mnl.icu/ph": {
+    "has_url": true,
+    "extracted_url": "https://bdo-mnl.icu/ph",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Chong Lua Dao (malicious)",
+      "Sophos (suspicious)",
+      "alphaMountain.ai (suspicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://bit.ly/gcash-x": {
+    "has_url": true,
+    "extracted_url": "https://bit.ly/Gcash-X",
+    "score": 0.75,
+    "verdict": "malicious",
+    "total_weight": 30.300000000000036,
+    "contributions": [
+      "Fortinet (malicious)",
+      "Gridinsoft (malicious)",
+      "LevelBlue (malicious)"
+    ]
+  },
+  "https://smartit.qpon/rewards": {
+    "has_url": true,
+    "extracted_url": "https://smartit.qpon/rewards",
+    "score": 0.85,
+    "verdict": "malicious",
+    "total_weight": 32.400000000000034,
+    "contributions": [
+      "Lionic (malicious)",
+      "alphaMountain.ai (malicious)",
+      "CRDF (malicious)",
+      "CyRadar (malicious)",
+      "Fortinet (malicious)",
+      "Seclookup (malicious)",
+      "Sophos (malicious)",
+      "Webroot (malicious)",
+      "Forcepoint ThreatSeeker (malicious)"
+    ]
+  },
+  "https://globeuc-ph.com": {
+    "has_url": true,
+    "extracted_url": "https://globeuc-ph.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://glocbe-ph.com": {
+    "has_url": true,
+    "extracted_url": "https://glocbe-ph.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.10000000000004,
+    "contributions": []
+  },
+  "https://globpe-ph.com": {
+    "has_url": true,
+    "extracted_url": "https://globpe-ph.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.10000000000004,
+    "contributions": []
+  },
+  "https://glopeox-ph.com": {
+    "has_url": true,
+    "extracted_url": "https://glopeox-ph.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.600000000000037,
+    "contributions": []
+  },
+  "https://globephox.com": {
+    "has_url": true,
+    "extracted_url": "https://globephox.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 32.10000000000004,
+    "contributions": []
+  },
+  "http://globe-points-ph.one/ph": {
+    "has_url": true,
+    "extracted_url": "http://globe-points-ph.one/ph",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 31.80000000000004,
+    "contributions": [
+      "Trustwave (malicious)"
+    ]
+  },
+  "https://web-bdo.online-digitalappdev.workers.dev/": {
+    "has_url": true,
+    "extracted_url": "https://web-bdo.online-digitalappdev.workers.dev/",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 31.80000000000004,
+    "contributions": [
+      "Trustwave (suspicious)"
+    ]
+  },
+  "https://globe-poluts.com/globe": {
+    "has_url": true,
+    "extracted_url": "https://globe-poluts.com/globe",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 31.80000000000004,
+    "contributions": []
+  },
+  "https://tq775.tw": {
+    "has_url": true,
+    "extracted_url": "https://tq775.tw",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://startwindjs.wixsite.com/betlead": {
+    "has_url": true,
+    "extracted_url": "https://startwindjs.wixsite.com/betlead",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.90000000000005,
+    "contributions": []
+  },
+  "https://bdoprotect.info/refund": {
+    "has_url": true,
+    "extracted_url": "https://bdoprotect.info/Refund",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.700000000000042,
+    "contributions": []
+  },
+  "https://gcash-getreward.website/claim": {
+    "has_url": true,
+    "extracted_url": "https://gcash-getreward.website/claim",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.700000000000042,
+    "contributions": [
+      "Trustwave (malicious)"
+    ]
+  },
+  "https://shorten.so/gcashmobile": {
+    "has_url": true,
+    "extracted_url": "https://shorten.so/gcashmobile",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.700000000000042,
+    "contributions": []
+  },
+  "https://sugarplay12.icu": {
+    "has_url": true,
+    "extracted_url": "https://Sugarplay12.icu",
+    "score": 0.4,
+    "verdict": "suspicious",
+    "total_weight": 30.600000000000037,
+    "contributions": [
+      "alphaMountain.ai (suspicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://winplus10.icu": {
+    "has_url": true,
+    "extracted_url": "https://winplus10.icu",
+    "score": 0.4,
+    "verdict": "suspicious",
+    "total_weight": 30.600000000000037,
+    "contributions": [
+      "LevelBlue (suspicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://fish.mba": {
+    "has_url": true,
+    "extracted_url": "https://fish.mba",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Kaspersky (malicious)"
+    ]
+  },
+  "https://epicwin4.icu": {
+    "has_url": true,
+    "extracted_url": "https://EpicWin4.icu",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 31.80000000000004,
+    "contributions": [
+      "CRDF (malicious)",
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://sugarplay.icu": {
+    "has_url": true,
+    "extracted_url": "https://SugarPlay.icu",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.700000000000042,
+    "contributions": [
+      "Bfore.Ai PreCrime (suspicious)"
+    ]
+  },
+  "http://phlpost.eu/irb1y7": {
+    "has_url": true,
+    "extracted_url": "http://phlpost.eu/iRb1y7",
+    "score": 0.75,
+    "verdict": "malicious",
+    "total_weight": 30.40000000000004,
+    "contributions": [
+      "Fortinet (malicious)",
+      "Emsisoft (malicious)",
+      "Kaspersky (malicious)",
+      "Netcraft (malicious)"
+    ]
+  },
+  "https://epicwin.icu": {
+    "has_url": true,
+    "extracted_url": "https://EpicWin.icu",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.40000000000004,
+    "contributions": [
+      "URLQuery (suspicious)"
+    ]
+  },
+  "https://m.facebook.com/story.php?story_fbid=649193020761806&id=100070133419175": {
+    "has_url": true,
+    "extracted_url": "https://m.facebook.com/story.php?story_fbid=649193020761806&id=100070133419175",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "https://winplus.icu": {
+    "has_url": true,
+    "extracted_url": "https://winplus.icu",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.300000000000036,
+    "contributions": [
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://s.lazada.com.ph/s.rjzmr": {
+    "has_url": true,
+    "extracted_url": "https://s.lazada.com.ph/s.RjZmR",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://jackpotcity.vegas": {
+    "has_url": true,
+    "extracted_url": "http://jackpotcity.vegas",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "http://metamask-iowallet.servehttp.com": {
+    "has_url": true,
+    "extracted_url": "http://metamask-iowallet.servehttp.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://gojpluck5.com": {
+    "has_url": true,
+    "extracted_url": "http://GoJPLuck5.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "http://splayfun.com": {
+    "has_url": true,
+    "extracted_url": "http://splayfun.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "https://risu.io/dbdnj": {
+    "has_url": true,
+    "extracted_url": "https://risu.io/DBdnj",
+    "score": 0.85,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Gridinsoft (malicious)",
+      "ADMINUSLabs (malicious)",
+      "Sophos (malicious)",
+      "alphaMountain.ai (malicious)",
+      "SafeToOpen (malicious)"
+    ]
+  },
+  "https://m.82388.xyz": {
+    "has_url": true,
+    "extracted_url": "https://m.82388.xyz",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "http://whgv05.com": {
+    "has_url": true,
+    "extracted_url": "http://whgv05.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.10000000000004,
+    "contributions": []
+  },
+  "https://a22.pw/#": {
+    "has_url": true,
+    "extracted_url": "https://a22.pw/#",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://233704.store": {
+    "has_url": true,
+    "extracted_url": "https://233704.store",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 30.700000000000042,
+    "contributions": [
+      "Avira (malicious)"
+    ]
+  },
+  "https://tg777.zone/?a=428232": {
+    "has_url": true,
+    "extracted_url": "https://tg777.zone/?a=428232",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://pisogo.beauty/mpq": {
+    "has_url": true,
+    "extracted_url": "http://pisogo.beauty/MpQ",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "https://v.ht/sm-p05": {
+    "has_url": true,
+    "extracted_url": "https://v.ht/SM-p05",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Gridinsoft (malicious)"
+    ]
+  },
+  "https://lbpiaccessportal.com/?verify": {
+    "has_url": true,
+    "extracted_url": "https://lbpiaccessportal.com/?verify",
+    "score": 0.75,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Fortinet (malicious)",
+      "G-Data (malicious)",
+      "BitDefender (malicious)",
+      "LevelBlue (suspicious)",
+      "Sophos (malicious)"
+    ]
+  },
+  "https://my-bdoupdates.com/confirm": {
+    "has_url": true,
+    "extracted_url": "https://my-bdoupdates.com/confirm",
+    "score": 0.75,
+    "verdict": "malicious",
+    "total_weight": 30.40000000000004,
+    "contributions": [
+      "Emsisoft (malicious)",
+      "Kaspersky (malicious)",
+      "Netcraft (malicious)"
+    ]
+  },
+  "http://9cb.life/44m6z": {
+    "has_url": true,
+    "extracted_url": "http://9cb.life/44M6Z",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "https://m5.gs/r3r1d0": {
+    "has_url": true,
+    "extracted_url": "https://m5.gs/R3R1d0",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://phgames.cyou/wig": {
+    "has_url": true,
+    "extracted_url": "http://phgames.cyou/WIg",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://bdoonlineapp.page.link/login": {
+    "has_url": true,
+    "extracted_url": "https://bdoonlineapp.page.link/Login",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://shortener.live/bdoupdate": {
+    "has_url": true,
+    "extracted_url": "https://shortener.live/BDOUpdate",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.10000000000004,
+    "contributions": []
+  },
+  "http://www.onlinebdo-banking.online": {
+    "has_url": true,
+    "extracted_url": "http://www.onlinebdo-banking.online",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Webroot (malicious)"
+    ]
+  },
+  "http://phgaming.shop/hlq": {
+    "has_url": true,
+    "extracted_url": "http://phgaming.shop/hLq",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://pfjh.store": {
+    "has_url": true,
+    "extracted_url": "http://pfjh.store",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://gamebet.li/j48": {
+    "has_url": true,
+    "extracted_url": "https://gamebet.li/j48",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://th676.xyz": {
+    "has_url": true,
+    "extracted_url": "https://th676.xyz",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.90000000000005,
+    "contributions": [
+      "Forcepoint ThreatSeeker (suspicious)"
+    ]
+  },
+  "https://bdo-updateadvisoryph.com/bdoonline": {
+    "has_url": true,
+    "extracted_url": "https://bdo-updateadvisoryph.com/BDOOnline",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 31.000000000000043,
+    "contributions": [
+      "Trustwave (malicious)"
+    ]
+  },
+  "http://fpin.u.dwx1.sbs/kocjf6s": {
+    "has_url": true,
+    "extracted_url": "http://fpin.u.dwx1.sbs/kOCJf6s",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "LevelBlue (suspicious)"
+    ]
+  },
+  "https://luck98.com/g4pn1": {
+    "has_url": true,
+    "extracted_url": "https://luck98.com/G4pn1",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.40000000000004,
+    "contributions": [
+      "ESET (suspicious)"
+    ]
+  },
+  "https://hya568.com": {
+    "has_url": true,
+    "extracted_url": "https://hya568.com",
+    "score": 0.25,
+    "verdict": "suspicious",
+    "total_weight": 30.600000000000037,
+    "contributions": [
+      "Gridinsoft (suspicious)"
+    ]
+  },
+  "https://kaa9867.com": {
+    "has_url": true,
+    "extracted_url": "https://kaa9867.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "https://fils.win": {
+    "has_url": true,
+    "extracted_url": "https://fils.win",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Fortinet (malicious)"
+    ]
+  },
+  "https://os5524.com/": {
+    "has_url": true,
+    "extracted_url": "https://os5524.com/",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "http://gaming0063.quest/nof": {
+    "has_url": true,
+    "extracted_url": "http://gaming0063.quest/nOf",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://mon21.com": {
+    "has_url": true,
+    "extracted_url": "http://mon21.com",
+    "score": 0.45,
+    "verdict": "malicious",
+    "total_weight": 30.600000000000037,
+    "contributions": [
+      "CRDF (malicious)"
+    ]
+  },
+  "https://www.yge8gh.com": {
+    "has_url": true,
+    "extracted_url": "https://www.yge8gh.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://gd6416.com/?a=46956": {
+    "has_url": true,
+    "extracted_url": "https://gd6416.com/?a=46956",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.90000000000005,
+    "contributions": []
+  },
+  "https://iplogger.org/gcashverification": {
+    "has_url": true,
+    "extracted_url": "https://iplogger.org/GCASHVerification",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://xt5746.com": {
+    "has_url": true,
+    "extracted_url": "https://xt5746.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://asias.poker": {
+    "has_url": true,
+    "extracted_url": "http://asias.poker",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://www.777pub.pub/?agentid=10007604": {
+    "has_url": true,
+    "extracted_url": "https://www.777pub.pub/?agentid=10007604",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://betcenter.live/800": {
+    "has_url": true,
+    "extracted_url": "http://betcenter.live/800",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.40000000000004,
+    "contributions": []
+  },
+  "http://win777.rest/yy5": {
+    "has_url": true,
+    "extracted_url": "http://win777.rest/Yy5",
+    "score": 0.65,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Forcepoint ThreatSeeker (malicious)"
+    ]
+  },
+  "http://nsmart.pro": {
+    "has_url": true,
+    "extracted_url": "http://nsmart.pro",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 23.300000000000022,
+    "contributions": []
+  },
+  "https://cancel35202119-binance-com.web.app": {
+    "has_url": true,
+    "extracted_url": "https://cancel35202119-binance-com.web.app",
+    "score": 0.95,
+    "verdict": "malicious",
+    "total_weight": 30.600000000000037,
+    "contributions": [
+      "Lionic (malicious)",
+      "alphaMountain.ai (malicious)",
+      "BitDefender (malicious)",
+      "ESET (malicious)",
+      "Fortinet (malicious)",
+      "G-Data (malicious)",
+      "Gridinsoft (suspicious)",
+      "Kaspersky (malicious)",
+      "Rising (malicious)",
+      "Sophos (malicious)",
+      "LevelBlue (suspicious)",
+      "VIPRE (malicious)",
+      "Webroot (malicious)"
+    ]
+  },
+  "http://pesc.pw/4nn27r": {
+    "has_url": true,
+    "extracted_url": "http://pesc.pw/4nn27r",
+    "score": 0.85,
+    "verdict": "malicious",
+    "total_weight": 30.900000000000045,
+    "contributions": [
+      "Emsisoft (malicious)",
+      "ESET (suspicious)",
+      "Chong Lua Dao (malicious)",
+      "Gridinsoft (malicious)",
+      "ADMINUSLabs (malicious)",
+      "Sophos (malicious)",
+      "alphaMountain.ai (malicious)",
+      "Webroot (malicious)",
+      "Lionic (malicious)",
+      "Criminal IP (malicious)"
+    ]
+  },
+  "https://t.co/cyhm4iqrdg": {
+    "has_url": true,
+    "extracted_url": "https://t.co/cyhM4iQRdg",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://phboom.com/wtk": {
+    "has_url": true,
+    "extracted_url": "http://phboom.com/Wtk",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://www.shangrilasidences.com": {
+    "has_url": true,
+    "extracted_url": "http://www.shangrilasidences.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "https://winner777.pro/sm": {
+    "has_url": true,
+    "extracted_url": "https://winner777.pro/sm",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://bet03.fan": {
+    "has_url": true,
+    "extracted_url": "http://bet03.fan",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://phbetpo.shop/rh8": {
+    "has_url": true,
+    "extracted_url": "http://phbetpo.shop/rH8",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.70000000000004,
+    "contributions": []
+  },
+  "http://www.atortigas.com": {
+    "has_url": true,
+    "extracted_url": "http://www.AtOrtigas.com",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  },
+  "http://www.shangrilapropertiesinc.com/rise-makati": {
+    "has_url": true,
+    "extracted_url": "http://www.shangrilapropertiesinc.com/rise-makati",
+    "score": 0.0,
+    "verdict": "benign",
+    "total_weight": 30.900000000000045,
+    "contributions": []
+  }
+}
