@@ -1,6 +1,9 @@
 {
-  "rf_weight": 0.75,
-  "xgb_weight": 0.25,
-  "threshold": 0.50,
-  "val_f1": 0.9179
+  "rf_weight": 0.50,
+  "xgb_weight": 0.50,
+  "threshold": 0.40,
+  "suspicious_threshold": 0.40,
+  "smishing_threshold": 0.70,
+  "harmful_threshold": 0.70,
+  "val_f1": 0.9606
 }

@@ -276,9 +276,9 @@ async def scan_sms_message(request: SmsScanRequest):
             url_analysis=url_res_dict if has_url_flag else {}
         )
 
-        # 4. Only save SMS logs and classification results if user allowed saving AND overall_score reaches 65% (0.65) threshold
+        # 4. Only save SMS logs and classification results if user allowed saving AND overall_score reaches suspicious threshold (>= 0.50)
         saved_sms_id = None
-        if request.allow_save and overall_score >= 0.65:
+        if request.allow_save and overall_score >= 0.50:
             # Save SMS to public.sms_message and retrieve key
             saved_sms_id = await scanner.save_sms_message_to_db(request.sender, message_to_scan, 0)
             if saved_sms_id:
@@ -326,8 +326,8 @@ async def scan_sms_message(request: SmsScanRequest):
                         scan_result=single_scan_dict
                     )
 
-        # 5. Automatically log to NTC report table if auto_report is enabled AND overall_score reaches suspicious/harmful threshold (>= 0.65)
-        if request.auto_report and overall_score >= 0.65:
+        # 5. Automatically log to NTC report table if auto_report is enabled AND overall_score reaches suspicious/harmful threshold (>= 0.50)
+        if request.auto_report and overall_score >= 0.50:
             await scanner.save_ntc_report_to_db(
                 message=message_to_scan,
                 url_analysis=url_res_dict if has_url_flag else {},

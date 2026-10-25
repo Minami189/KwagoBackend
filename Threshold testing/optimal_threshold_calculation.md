@@ -62,67 +62,56 @@ $$\text{Max possible contribution from ML alone} = \frac{1}{3} \times 1.00 = \ma
 
 ```
 Verdict Tiers:
-  Safe:       S < 0.65
-  Suspicious: 0.65 <= S < 0.85
-  Harmful:    S >= 0.85
+  Safe:       S < 0.50
+  Suspicious: 0.50 <= S < 0.75
+  Harmful:    S >= 0.75
+
+Local ML Only (On-Device Pre-Scan):
+  Safe:       ML < 0.40
+  Suspicious: 0.40 <= ML < 0.70
+  Harmful:    ML >= 0.70
 ```
 
 ---
 
 ### Case 1 & Case 2: Text-Only SMS OR Pending URL
-* **Active Weights**: $66.7\%$ DL $+ 33.3\%$ ML
+* **Active Weights**: $33.3\%$ DL $+ 66.7\%$ ML
 * **Ensemble Formula**:
-  $$S = \left(\frac{2}{3} \times \text{DL}\right) + \left(\frac{1}{3} \times \text{ML}\right)$$
+  $$S = \left(\frac{1}{3} \times \text{DL}\right) + \left(\frac{2}{3} \times \text{ML}\right)$$
 
-#### 1. Transition to Suspicious ($S \ge 0.65$)
-$$\frac{2}{3}\text{DL} + \frac{1}{3}\text{ML} \ge 0.65 \iff 2\,\text{DL} + \text{ML} \ge 1.95 \iff \mathbf{\text{DL} \ge 0.975 - 0.5\,\text{ML}}$$
+#### 1. Transition to Suspicious ($S \ge 0.50$)
+$$\frac{1}{3}\text{DL} + \frac{2}{3}\text{ML} \ge 0.50 \iff \text{DL} + 2\,\text{ML} \ge 1.50 \iff \mathbf{\text{DL} \ge 1.50 - 2\,\text{ML}}$$
 
-#### 2. Transition to Harmful ($S \ge 0.85$)
-$$\frac{2}{3}\text{DL} + \frac{1}{3}\text{ML} \ge 0.85 \iff 2\,\text{DL} + \text{ML} \ge 2.55 \iff \mathbf{\text{DL} \ge 1.275 - 0.5\,\text{ML}}$$
-
-#### Exact Tipping Points Matrix:
-| Local ML Score | Minimum DL for Suspicious ($S \ge 0.65$) | Minimum DL for Harmful ($S \ge 0.85$) | Operational Status |
-| :---: | :---: | :---: | :--- |
-| **`0%`** | $\text{DL} \ge 97.5\%$ | Unreachable ($\text{DL} > 100\%$) | High-confidence DL required to flag scam |
-| **`25%`** | $\text{DL} \ge 85.0\%$ | Unreachable ($\text{DL} > 100\%$) | DL requires strong certainty |
-| **`50%`** | $\text{DL} \ge 72.5\%$ | Unreachable ($\text{DL} > 100\%$) | Moderate ML requires significant DL |
-| **`65%`** | $\text{DL} \ge 65.0\%$ | $\text{DL} \ge 95.0\%$ | Balanced dual-model detection |
-| **`85%`** | $\text{DL} \ge 55.0\%$ | $\text{DL} \ge 85.0\%$ | Dual high-confidence corroboration |
-| **`100%`** | $\text{DL} \ge 47.5\%$ | $\text{DL} \ge 77.5\%$ | Minimum theoretical DL boundaries |
+#### 2. Transition to Harmful ($S \ge 0.75$)
+$$\frac{1}{3}\text{DL} + \frac{2}{3}\text{ML} \ge 0.75 \iff \text{DL} + 2\,\text{ML} \ge 2.25 \iff \mathbf{\text{DL} \ge 2.25 - 2\,\text{ML}}$$
 
 ---
 
 ### Case 3A: Web Link Present & Verified Clean ($S_{\text{URL}} = 0.00$)
-* **Active Weights**: $50\%$ DL $+ 25\%$ ML $+ 25\%$ URL ($S_{\text{URL}} = 0.00$)
+* **Active Weights**: $20\%$ DL $+ 60\%$ ML $+ 20\%$ URL ($S_{\text{URL}} = 0.00$)
 * **Ensemble Formula**:
-  $$S = (0.50 \times \text{DL}) + (0.25 \times \text{ML}) + (0.25 \times 0.00) = 0.50\,\text{DL} + 0.25\,\text{ML}$$
+  $$S = (0.20 \times \text{DL}) + (0.60 \times \text{ML}) + (0.20 \times 0.00) = 0.20\,\text{DL} + 0.60\,\text{ML}$$
 
-#### 1. Transition to Suspicious ($S \ge 0.65$)
-$$0.50\,\text{DL} + 0.25\,\text{ML} \ge 0.65 \iff 2\,\text{DL} + \text{ML} \ge 2.60 \iff \mathbf{\text{DL} \ge 1.30 - 0.5\,\text{ML}}$$
+#### 1. Transition to Suspicious ($S \ge 0.50$)
+$$0.20\,\text{DL} + 0.60\,\text{ML} \ge 0.50 \iff \text{DL} + 3\,\text{ML} \ge 2.50 \iff \mathbf{\text{DL} \ge 2.50 - 3\,\text{ML}}$$
 
-#### 2. The Clean URL Mitigation Ceiling (Harmful is Unreachable)
-$$\max(S) = 0.50(1.0) + 0.25(1.0) = \mathbf{0.750}$$
-Since $\max(S) < 0.85$:
-$$\mathbf{S < 0.85 \quad \forall \ (\text{DL}, \text{ML}) \in [0, 1]^2}$$
-
-> **Architectural Invariant**: A verified clean web link acts as a mathematical risk ceiling. Official bank OTPs and telco notifications with clean domains can **never trigger false Harmful verdicts**, protecting users from unwarranted account lockouts.
+#### 2. Transition to Harmful ($S \ge 0.75$)
+$$0.20\,\text{DL} + 0.60\,\text{ML} \ge 0.75 \iff \text{DL} + 3\,\text{ML} \ge 3.75$$
 
 ---
 
 ### Case 3B: Web Link Flagged Suspicious ($0.20 \le S_{\text{URL}} < 0.45$)
-* **Active Weights**: $50\%$ DL $+ 25\%$ ML $+ 25\%$ URL
+* **Active Weights**: $20\%$ DL $+ 60\%$ ML $+ 20\%$ URL
 * **Backend Safety Floor**:
   Inside `app/scanner.py`:
-  $$\text{if } \text{URL}_{\text{verdict}} == \text{"suspicious"} \implies S = \max(S, 0.65), \quad \text{Verdict} = \text{Suspicious}$$
-* **Behavior**: Automatically locked to at least **Suspicious**. Reaching Harmful requires:
-  $$2\,\text{DL} + \text{ML} \ge 3.40 - S_{\text{URL}} \implies \text{DL} \ge 98\%, \ \text{ML} \ge 96\%$$
+  $$\text{if } \text{URL}_{\text{verdict}} == \text{"suspicious"} \implies S = \max(S, 0.50), \quad \text{Verdict} = \text{Suspicious}$$
 
 ---
 
 ### Case 3C: Web Link Flagged Malicious ($S_{\text{URL}} \ge 0.45$)
 * **Backend Safety Override**:
   Inside `app/scanner.py`:
-  $$\text{if } \text{URL}_{\text{verdict}} == \text{"malicious"} \implies S = \max(S, 0.85), \quad \text{Verdict} = \text{Harmful}$$
+  $$\text{if } \text{URL}_{\text{verdict}} == \text{"malicious"} \implies S = \max(S, 0.75), \quad \text{Verdict} = \text{Harmful}$$
 * **Behavior**: Immediately elevated to **Harmful**, citing the specific flagging antivirus engines (e.g. *Kaspersky, Microsoft, Google Safe Browsing*) regardless of text ambiguity.
 
 ---
@@ -140,31 +129,23 @@ The mathematical boundaries were evaluated across all **$4,474$ real SMS message
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 | `0.20` | 90.80% | 97.18% | 0.9388 | 0.9134 | 164 | 47 | 0.0892 | High sensitivity; high false alarms |
 | `0.35` | 92.24% | 96.34% | 0.9424 | 0.9153 | 135 | 61 | 0.0983 | Intermediate boundary |
-| `0.50` | 93.97% | 95.50% | 0.9473 | 0.9186 | 102 | 75 | 0.1066 | Youden's $J$ boundary |
-| `0.60` | 94.40% | 95.14% | 0.9477 | 0.9179 | 94 | 81 | 0.1115 | Intermediate threshold |
-| **`0.65`** | **97.31%** | **95.50%** | **0.9639** | **0.9312** | **68** | **75** | **0.1012** | **Optimal Suspicious Cutoff (Highest Multi-Layer F1)** |
-| `0.70` | 94.86% | 94.29% | 0.9458 | 0.9127 | 85 | 95 | 0.1252 | Moderately strict filter |
-| **`0.85`** | **97.22%** | **92.25%** | **0.9467** | **0.9069** | **44** | **129** | **0.1540** | **Optimal Harmful Boundary ($FPR = 1.56\%$)** |
-
-### Statistical Conclusions:
-1. **`0.65` is the Optimal Suspicious Cutoff**:
-   Achieves optimal multi-layer ensemble performance ($F1 = 0.9639$, Accuracy $= 97.34\%$, Precision $= 97.31\%$), filtering out ambiguous notices and low-confidence triggers while maintaining high recall ($95.50\%$).
-2. **`0.85` is the Optimal High-Confidence Boundary**:
-   Limits false alarms on legitimate banking OTPs and telco notifications to just **$1.56\%$** ($FP = 44$ out of $2,809$), achieving **$97.22\%$ precision**.
-3. **The Malicious URL Override Recovers Evasive Phishing**:
-   In messages containing URLs, attackers frequently employ benign, conversational text (*"view your bill"*, *"click to see shared photo"*), causing text-only recall to drop to $84.26\%$. The Case 3C Malicious URL override **recovers all $31$ missed phishing attacks ($15.7\%$)**.
+| **`0.50`** | **94.11%** | **97.84%** | **0.9594** | **0.9420** | **102** | **36** | **0.0626** | **Optimal Suspicious Cutoff** |
+| `0.60` | 97.79% | 95.56% | 0.9666 | 0.9442 | 36 | 74 | 0.0907 | Balanced dual-model detection |
+| `0.70` | 98.65% | 87.75% | 0.9288 | 0.8704 | 20 | 204 | 0.2325 | Low false alarm boundary |
+| **`0.75`** | **99.22%** | **83.54%** | **0.9071** | **0.8315** | **11** | **274** | **0.3087** | **Optimal Harmful Boundary ($FPR = 0.39\%$)** |
 
 ---
 
 ## 5. Master Threshold Summary Matrix
 
-| Case Scenario | Active Layers & Weights | Linear Score Formula | Safe ($S < 0.65$) | Suspicious ($0.65 \le S < 0.85$) | Harmful ($S \ge 0.85$) |
+| Case Scenario | Active Layers & Weights | Linear Score Formula | Safe ($S < 0.50$) | Suspicious ($0.50 \le S < 0.75$) | Harmful ($S \ge 0.75$) |
 | :--- | :---: | :--- | :--- | :--- | :--- |
-| **Case 1: Text Only** | $50\%$ ML / $50\%$ DL | $S = 0.50\,\text{ML} + 0.50\,\text{DL}$ | $\text{ML} + \text{DL} < 1.30$ | $1.30 \le \text{ML} + \text{DL} < 1.70$ | $\text{ML} + \text{DL} \ge 1.70$ |
-| **Case 2: URL Pending** | $50\%$ ML / $50\%$ DL | $S = 0.50\,\text{ML} + 0.50\,\text{DL}$ | $\text{ML} + \text{DL} < 1.30$ | $1.30 \le \text{ML} + \text{DL} < 1.70$ | $\text{ML} + \text{DL} \ge 1.70$ |
-| **Case 3A: Clean URL** | $50\%$ ML / $25\%$ DL / $25\%$ URL | $S = 0.50\,\text{ML} + 0.25\,\text{DL}$ | $2\,\text{ML} + \text{DL} < 2.60$ | $2.60 \le 2\,\text{ML} + \text{DL} \le 3.00$ | **Unreachable** ($\max S = 0.75$) |
-| **Case 3B: Suspicious URL** | $50\%$ ML / $25\%$ DL / $25\%$ URL | Floor: $S \ge 0.65$ | None | Baseline ($0.65 \le S < 0.85$) | $2\,\text{ML} + \text{DL} + \text{URL} \ge 3.40$ |
-| **Case 3C: Malicious URL** | Override: $S \ge 0.85$ | Floor: $S \ge 0.85$ | None | None | **Automatic Override** |
+| **ML Layer Only** | 50% RF / 50% XGB | On-device confidence | $\text{ML} < 0.40$ | $0.40 \le \text{ML} < 0.70$ | $\text{ML} \ge 0.70$ |
+| **Case 1: Text Only** | 66.7% ML / 33.3% DL | $S = \frac{2}{3}\text{ML} + \frac{1}{3}\text{DL}$ | $\text{DL} + 2\,\text{ML} < 1.50$ | $1.50 \le \text{DL} + 2\,\text{ML} < 2.25$ | $\text{DL} + 2\,\text{ML} \ge 2.25$ |
+| **Case 2: URL Pending** | 66.7% ML / 33.3% DL | $S = \frac{2}{3}\text{ML} + \frac{1}{3}\text{DL}$ | $\text{DL} + 2\,\text{ML} < 1.50$ | $1.50 \le \text{DL} + 2\,\text{ML} < 2.25$ | $\text{DL} + 2\,\text{ML} \ge 2.25$ |
+| **Case 3A: Clean URL** | 60% ML / 20% DL / 20% URL | $S = 0.60\,\text{ML} + 0.20\,\text{DL}$ | $\text{DL} + 3\,\text{ML} < 2.50$ | $2.50 \le \text{DL} + 3\,\text{ML} < 3.75$ | $\text{DL} + 3\,\text{ML} \ge 3.75$ |
+| **Case 3B: Suspicious URL** | 60% ML / 20% DL / 20% URL | Floor: $S \ge 0.50$ | None | Baseline ($0.50 \le S < 0.75$) | $0.20\,\text{DL} + 0.60\,\text{ML} + 0.20\,\text{URL} \ge 0.75$ |
+| **Case 3C: Malicious URL** | Override: $S \ge 0.75$ | Floor: $S \ge 0.75$ | None | None | **Automatic Override** |
 
 ---
 

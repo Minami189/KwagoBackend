@@ -8,8 +8,8 @@ FastAPI backend for multi-layer SMS smishing classification, deep learning NLP a
 
 KwagoBackend combines three distinct threat detection layers to determine an overall classification score ($S$) and synthesize human-readable executive explanations for mobile users:
 
-1. **Local ML Layer (Random Forest + XGBoost)**: Mobile client pre-scan confidence score (`Safe`: $< 65\%$, `Suspicious`: $65\% - 85\%$, `Harmful`: $\ge 85\%$).
-2. **Server Deep Learning Layer (CNN-BiGRU ONNX Model)**: NLP analysis extracting linguistic urgency and scam phrasing (`Safe`: $< 65\%$, `Suspicious`: $65\% - 85\%$, `Harmful`: $\ge 85\%$).
+1. **Local ML Layer (Random Forest + XGBoost)**: Mobile client pre-scan confidence score (`Safe`: $< 40\%$, `Suspicious`: $40\% - 70\%$, `Harmful`: $\ge 70\%$).
+2. **Server Deep Learning Layer (CNN-BiGRU ONNX Model)**: NLP analysis extracting linguistic urgency and scam phrasing (`Safe`: $< 50\%$, `Suspicious`: $50\% - 75\%$, `Harmful`: $\ge 75\%$).
 3. **URL Threat Scanner Layer (VirusTotal API)**: Weighted threat reputation analysis over security vendor engines.
 
 ---
@@ -18,10 +18,10 @@ KwagoBackend combines three distinct threat detection layers to determine an ove
 
 | Case Scenario | Active Layers & Weights | Ensemble Formula |
 | :--- | :--- | :--- |
-| **Case 1: No Web Link (or Only Email Address)** | 50% Local ML + 50% CNN DL | $S = (0.50 \times \text{ML}) + (0.50 \times \text{DL})$ |
-| **Case 2: Web Link Present, but Scan Pending / Unavailable** | 50% Local ML + 50% CNN DL *(+ Caution Warning Appended)* | $S = (0.50 \times \text{ML}) + (0.50 \times \text{DL})$ |
-| **Case 3A: Web Link(s) Present & Scan Completed (Clean / Suspicious)** | 50% Local ML + 25% CNN DL + 25% URL Scan | $S = (0.50 \times \text{ML}) + (0.25 \times \text{DL}) + (0.25 \times \text{URL})$ |
-| **Case 3B: Any Web Link Confirmed Malicious ($S_{\text{URL}} \ge 0.45$)** | **50% URL Scan** + 35% Local ML + 15% CNN DL *(+ Escalation Floor $\ge 0.85$)* | $S = \max\big(0.85, (0.50 \times \text{URL}) + (0.35 \times \text{ML}) + (0.15 \times \text{DL})\big)$ |
+| **Case 1: No Web Link (or Only Email Address)** | 66.7% Local ML + 33.3% CNN DL | $S = (0.667 \times \text{ML}) + (0.333 \times \text{DL})$ |
+| **Case 2: Web Link Present, but Scan Pending / Unavailable** | 66.7% Local ML + 33.3% CNN DL *(+ Caution Warning Appended)* | $S = (0.667 \times \text{ML}) + (0.333 \times \text{DL})$ |
+| **Case 3A: Web Link(s) Present & Scan Completed (Clean / Suspicious)** | 60% Local ML + 20% CNN DL + 20% URL Scan | $S = (0.60 \times \text{ML}) + (0.20 \times \text{DL}) + (0.20 \times \text{URL})$ |
+| **Case 3B: Any Web Link Confirmed Malicious ($S_{\text{URL}} \ge 0.45$)** | **50% URL Scan** + 35% Local ML + 15% CNN DL *(+ Escalation Floor $\ge 0.75$)* | $S = \max\big(0.75, (0.50 \times \text{URL}) + (0.35 \times \text{ML}) + (0.15 \times \text{DL})\big)$ |
 
 ---
 
@@ -29,9 +29,9 @@ KwagoBackend combines three distinct threat detection layers to determine an ove
 
 | Verdict | Probability Score Range ($S$) | Behavior | Status Badge / UI Color | System Actions |
 | :--- | :--- | :--- | :--- | :--- |
-| **Safe** | **Below 65% ($S < 0.65$)** | No threat or scam patterns detected. | Green (`#26CE6B`) | Allowed normally; bypassed from database logging. |
-| **Suspicious** | **65% to 85% ($0.65 \le S < 0.85$)** | Unsolicited, promotional, or high-urgency content. | Orange (`#FFF07048`) | Caution alert shown; logged to DB if `allow_save = true`. |
-| **Harmful** | **Above 85% ($S \ge 0.85$)** | High risk SMS scam / credential phishing. | Red (`#FF4D55`) | Threat warning generated; logged to DB if `allow_save = true`. |
+| **Safe** | **Below 50% ($S < 0.50$)** | No threat or scam patterns detected. | Green (`#26CE6B`) | Allowed normally; bypassed from database logging. |
+| **Suspicious** | **50% to 75% ($0.50 \le S < 0.75$)** | Unsolicited, promotional, or high-urgency content. | Orange (`#FFF07048`) | Caution alert shown; logged to DB if `allow_save = true`. |
+| **Harmful** | **Above 75% ($S \ge 0.75$)** | High risk SMS scam / credential phishing. | Red (`#FF4D55`) | Threat warning generated; logged to DB if `allow_save = true`. |
 
 > Detailed mathematical derivations, tipping points, and dataset evaluations on `sms_cleaned.csv` are documented in [optimal_threshold_calculation.md](file:///c:/Users/jerma/OneDrive/Desktop/KwagoBackend/optimal_threshold_calculation.md).
 

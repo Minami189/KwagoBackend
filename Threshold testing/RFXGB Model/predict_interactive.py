@@ -11,12 +11,12 @@ import requests
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # Load weights configuration if exists
-rf_weight = 0.75
-xgb_weight = 0.25
-local_weight = 0.50
-cnn_weight = 0.50
-suspicious_threshold = 0.50
-smishing_threshold = 0.80
+rf_weight = 0.50
+xgb_weight = 0.50
+local_weight = 0.667
+cnn_weight = 0.333
+suspicious_threshold = 0.40
+smishing_threshold = 0.70
 
 if os.path.exists("ml_layer_weights.json"):
     try:
