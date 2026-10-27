@@ -529,3 +529,53 @@ Submits user feedback when an SMS was misclassified (e.g. False Positive or Fals
     "message": "Misclassification report received successfully. Thank you for your feedback!"
   }
   ```
+
+
+---
+
+## 6. Data Privacy, Encryption & Model Retraining Workflow
+
+To comply with data privacy standards (e.g. Philippine Data Privacy Act of 2012) while continuously improving model accuracy, KwagoBackend implements **Application-Level Symmetric Encryption (ALE)** and **PII Anonymization** before storing any SMS content in the database.
+
+### A. Privacy & Encryption Pipeline
+
+```text
+Incoming User SMS / Report
+         │
+         ▼
+[ 1. PII Anonymization ] ──► Masks 4-8 digit OTPs (<OTP>) & Mobile numbers (<PHONE>)
+         │
+         ▼
+[ 2. Fernet AES Encryption ] ──► Encrypts using DB_ENCRYPTION_KEY (.env)
+         │
+         ▼
+[ 3. Supabase Database ] ──► Stores unreadable ciphertext tokens (gAAAAABn...)
+```
+
+* **Zero Plaintext at Rest:** The database never contains readable user SMS messages or phone numbers.
+* **Key Isolation:** The encryption key resides exclusively in the server `.env`, never in database tables.
+* **Scrubbed Training Signals:** Replacing phone numbers and OTPs ensures the AI learns smishing syntax and urgency cues rather than memorizing private phone numbers or OTP codes.
+
+---
+
+### B. End-to-End Retraining Cycle
+
+When sufficient user misclassification reports or flagged samples have accumulated in Supabase:
+
+#### Step 1: Export and Decrypt Data
+Run the automated exporter to pull and decrypt reports in-memory:
+```bash
+python export_retraining_data.py --output retraining_data.csv --status all
+```
+
+#### Step 2: Merge into Main Dataset
+Deduplicate and merge the newly labeled feedback samples into the training dataset:
+```bash
+python merge_feedback_dataset.py --input retraining_data.csv --base "Threshold testing/sms_cleaned.csv"
+```
+
+#### Step 3: Retrain and Export Updated ONNX
+1. Open [`models/kwago_Training_CNNBiGRU.ipynb`](models/kwago_Training_CNNBiGRU.ipynb) or [`models/kwago_Training_RFXGB.ipynb`](models/kwago_Training_RFXGB.ipynb).
+2. Re-run training with the enriched dataset.
+3. Export the updated model to [`models/cnn_bigru_model.onnx`](models/cnn_bigru_model.onnx) and update tokenizer weights.
+4. Restart FastAPI backend—it will automatically load the newly trained ONNX model on startup.
