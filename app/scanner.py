@@ -15,6 +15,7 @@ import onnxruntime as ort
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from cachetools import TTLCache
+from app.crypto_utils import encrypt_text, decrypt_text
 
 load_dotenv()
 
@@ -1084,8 +1085,8 @@ async def save_sms_message_to_db(sender_number: str, message_content: str, is_pr
         return None
     try:
         response = supabase.table("sms_message").insert({
-            "sender_number": sender_number or "UNKNOWN",
-            "message_content": message_content,
+            "sender_number": encrypt_text(sender_number or "UNKNOWN"),
+            "message_content": encrypt_text(message_content, scrub_pii=True),
             "is_processed": is_processed
         }).execute()
         if response.data:
@@ -1213,13 +1214,13 @@ async def save_ntc_report_to_db(
         report_id = str(uuid.uuid4())
         record = {
             "id": report_id,
-            "message": message,
+            "message": encrypt_text(message, scrub_pii=True),
             "url_analysis": url_analysis if url_analysis else {},
             "ml_score": float(ml_score) if ml_score is not None else None,
             "dl_score": float(dl_score) if dl_score is not None else None,
             "final_score": float(final_score),
             "verdict": str(verdict),
-            "sender": sender or "UNKNOWN",
+            "sender": encrypt_text(sender or "UNKNOWN"),
             "status": status
         }
         res = supabase.table("ntc_report").insert(record).execute()
@@ -1273,8 +1274,8 @@ async def save_misclassification_report_to_db(
 
         record = {
             "id": report_id,
-            "sender": sender or "UNKNOWN",
-            "message": message,
+            "sender": encrypt_text(sender or "UNKNOWN"),
+            "message": encrypt_text(message, scrub_pii=True),
             "has_url": bool(has_url),
             "extracted_url": extracted_url,
             "original_verdict": str(original_verdict),
