@@ -390,8 +390,10 @@ async def report_misclassification(request: MisclassificationReportRequest):
         )
 
         if not report_id:
-            import uuid
-            report_id = str(uuid.uuid4())
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to persist misclassification report to database."
+            )
 
         return MisclassificationReportResponse(
             status="success",

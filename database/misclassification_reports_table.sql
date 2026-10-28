@@ -1,8 +1,10 @@
 -- SQL Migration: Create public.misclassification_reports table and setup Row Level Security (RLS) policies
+-- If migrating an existing table where sender was VARCHAR(50):
+-- ALTER TABLE public.misclassification_reports ALTER COLUMN sender TYPE TEXT;
 
 CREATE TABLE IF NOT EXISTS public.misclassification_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    sender VARCHAR(50) DEFAULT 'UNKNOWN',
+    sender TEXT DEFAULT 'UNKNOWN',
     message TEXT NOT NULL,
     has_url BOOLEAN DEFAULT false,
     extracted_url TEXT,

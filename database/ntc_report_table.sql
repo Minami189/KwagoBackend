@@ -1,8 +1,10 @@
 -- SQL Migration: Create public.ntc_report table and setup Row Level Security (RLS) policies
+-- If migrating an existing table where sender was VARCHAR(50):
+-- ALTER TABLE public.ntc_report ALTER COLUMN sender TYPE TEXT;
 
 CREATE TABLE IF NOT EXISTS public.ntc_report (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    sender VARCHAR(50) DEFAULT 'UNKNOWN',
+    sender TEXT DEFAULT 'UNKNOWN',
     message TEXT NOT NULL,
     url_analysis JSONB,
     ml_score DOUBLE PRECISION DEFAULT 0.0,

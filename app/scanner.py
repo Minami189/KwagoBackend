@@ -1223,7 +1223,18 @@ async def save_ntc_report_to_db(
             "sender": encrypt_text(sender or "UNKNOWN"),
             "status": status
         }
-        res = supabase.table("ntc_report").insert(record).execute()
+        try:
+            res = supabase.table("ntc_report").insert(record).execute()
+        except Exception as insert_err:
+            # If the database column is VARCHAR(50), Fernet ciphertext (~120 chars) exceeds length limit (code 22001)
+            err_str = str(insert_err)
+            if "22001" in err_str or "value too long" in err_str:
+                print("Warning: sender column in public.ntc_report is VARCHAR(50). Retrying with plain sender. Please run: ALTER TABLE public.ntc_report ALTER COLUMN sender TYPE TEXT;")
+                record["sender"] = (sender or "UNKNOWN")[:50]
+                res = supabase.table("ntc_report").insert(record).execute()
+            else:
+                raise insert_err
+
         if res.data:
             print(f"NTC report successfully logged to DB with id {report_id}")
             return report_id
@@ -1289,7 +1300,18 @@ async def save_misclassification_report_to_db(
             "device_id": device_id,
             "status": status
         }
-        res = supabase.table("misclassification_reports").insert(record).execute()
+        try:
+            res = supabase.table("misclassification_reports").insert(record).execute()
+        except Exception as insert_err:
+            # If the database column is VARCHAR(50), Fernet ciphertext (~120 chars) exceeds length limit (code 22001)
+            err_str = str(insert_err)
+            if "22001" in err_str or "value too long" in err_str:
+                print("Warning: sender column in public.misclassification_reports is VARCHAR(50). Retrying with plain sender. Please run: ALTER TABLE public.misclassification_reports ALTER COLUMN sender TYPE TEXT;")
+                record["sender"] = (sender or "UNKNOWN")[:50]
+                res = supabase.table("misclassification_reports").insert(record).execute()
+            else:
+                raise insert_err
+
         if res.data:
             print(f"Misclassification report successfully logged to DB with id {report_id}")
             return report_id
