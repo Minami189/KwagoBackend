@@ -12,49 +12,45 @@ KwagoBackend evaluates incoming SMS threats through a three-layer detection pipe
 flowchart TD
     SMS["Incoming SMS Message"] --> Extractor["Feature & URL Extraction"]
     Extractor --> DL["Layer 1: Server Deep Learning (CNN-BiGRU ONNX)"]
-    Extractor --> ML["Layer 2: Mobile Local ML (RF / XGBoost)"]
+    Extractor --> ML["Layer 2: Mobile Local ML (50% RF / 50% XGBoost)"]
     Extractor --> URL{"Is Web Link Present?"}
 
-    URL -- "No / Pending" --> Case12["Cases 1 & 2: S = (2/3)DL + (1/3)ML"]
+    URL -- "No / Pending" --> Case12["Online (No URL): S = 0.333 DL + 0.667 ML"]
     URL -- "Scan Completed" --> VT["Layer 3: VirusTotal URL Scanner"]
-    VT --> Case3["Case 3: S = 0.50 DL + 0.25 ML + 0.25 URL"]
+    VT --> Case3["Online (With URL): S = 0.20 DL + 0.60 ML + 0.20 URL"]
 
     Case12 --> Synthesizer["Verdict Synthesizer & Explanation Engine"]
     Case3 --> Synthesizer
 
-    Synthesizer --> Safe["Safe: S < 0.65"]
-    Synthesizer --> Suspicious["Suspicious: 0.65 <= S < 0.85"]
-    Synthesizer --> Harmful["Harmful: S >= 0.85"]
+    Synthesizer --> Safe["Safe: S < 0.50"]
+    Synthesizer --> Suspicious["Suspicious: 0.50 <= S < 0.75"]
+    Synthesizer --> Harmful["Harmful: S >= 0.75"]
 ```
 
 ### Layer Definition:
 1. **$\text{DL}$ (Server Deep Learning Layer)**: Output probability of the CNN-BiGRU ONNX model ($0.0 \le \text{DL} \le 1.0$), evaluating semantic scam patterns, brand impersonation, and urgency.
-2. **$\text{ML}$ (Mobile Local ML Layer)**: Confidence score ($0.0 \le \text{ML} \le 1.0$) generated on-device via Random Forest / XGBoost based on tabular and lexical features.
+2. **$\text{ML}$ (Mobile Local ML Layer)**: Confidence score ($0.0 \le \text{ML} \le 1.0$) generated on-device via an equal $50\%$ Random Forest / $50\%$ XGBoost ensemble based on 5,000 TF-IDF n-grams and 19 structural/contextual features (`Safe`: $< 0.40$, `Suspicious`: $0.40 \le \text{ML} < 0.70$, `Harmful`: $\ge 0.70$).
 3. **$\text{URL}$ (URL Threat Scanner Layer)**: Normalized score ($0.0 \le \text{URL} \le 1.0$) computed over 80+ security engines via the VirusTotal API v3 with consensus dilution protection.
 
 ---
 
 ## 2. Derivation of the Decision Weights
 
-### A. The 2:1 Ratio Between DL and ML
-In both Case 1/2 ($66.7\% : 33.3\%$) and Case 3 ($50.0\% : 25.0\%$), the text classifiers strictly maintain a **$2:1$ weighting ratio** ($\frac{w_{\text{DL}}}{w_{\text{ML}}} = 2$).
+### A. Weighting Ratio Favoring Local ML Over Server DL
+In both **Online (No URL)** ($33.3\%\text{ DL} : 66.7\%\text{ ML}$, a $1:2$ ratio) and **Online (With URL)** ($20.0\%\text{ DL} : 60.0\%\text{ ML} : 20.0\%\text{ URL}$, a $1:3$ DL-to-ML ratio), the Local ML layer carries the primary text weight:
 
-#### 1. Inverse-Variance Weighting (Statistical Foundation)
-In estimation theory, the optimal weights that minimize the total error variance of uncorrelated or semi-correlated estimators are inversely proportional to their individual error variances:
-$$w_i^* = \frac{1/\sigma_i^2}{\sum_j 1/\sigma_j^2}$$
+#### 1. Multi-Dimensional Feature Advantage
+* **Local ML (RF + XGBoost)**: Operates on both 5,000 TF-IDF n-grams and 19 explicit structural, behavioral, and Philippine-contextual features (`digit_density`, `char_count`, `has_ph_bank`, `has_ph_telco`, `has_ph_urgency`, `has_cta`), achieving higher standalone accuracy ($97.09\%$) than raw sequence modeling alone.
+* **Server DL (CNN-BiGRU)**: Evaluates sequential word semantics ($\text{AUC-ROC} = 0.9921$), providing contextual corroboration when messages use novel phrasing without standard structural markers.
 
-* **Server DL (CNN-BiGRU)**: Sequential deep learning model trained on large token vocabularies with high semantic capacity ($\text{AUC-ROC} = 0.9921$, error variance $\sigma_{\text{DL}}^2$).
-* **Local ML (Mobile RF/XGBoost)**: Lightweight mobile model operating on n-grams and heuristic counts with higher noise on legitimate banking/telco notices ($\sigma_{\text{ML}}^2 \approx 2\,\sigma_{\text{DL}}^2$).
-* Setting $w_{\text{DL}} = \frac{2}{3}$ and $w_{\text{ML}} = \frac{1}{3}$ yields the minimum-variance ensemble.
-
-#### 2. The Single-Point False Alarm Shield
-If the models were weighted equally ($50\% / 50\%$), an on-device false positive ($\text{ML} = 1.0$) on an innocent text ($\text{DL} = 0.0$) would immediately trigger a false alarm:
-$$S = (0.50 \times 0.0) + (0.50 \times 1.0) = \mathbf{0.50}$$
-
-Under the $2:1$ formulation:
-$$\text{Max possible contribution from ML alone} = \frac{1}{3} \times 1.00 = \mathbf{0.333} < 0.65$$
-* **Guaranteed Safety Property**: The mobile model **cannot unilaterally flag an SMS as Suspicious** without at least $47.5\%$ corroboration from the Deep Learning model ($\text{DL} \ge 0.475$).
-* Conversely, if the mobile model misses a scam ($\text{ML} = 0.0$), the server DL model can independently flag Suspicious as long as $\text{DL} \ge 0.975$ ($\frac{2}{3} \times 0.975 = 0.65$).
+#### 2. The Single-Point False Alarm & Escalation Shield
+Under the $33.3\%\text{ DL} / 66.7\%\text{ ML}$ formulation:
+* **Server DL False Alarm Shield**:
+  $$\text{Max possible contribution from DL alone} = \frac{1}{3} \times 1.00 = \mathbf{0.333} < 0.50$$
+  The server DL model **cannot unilaterally flag an SMS as Suspicious** ($\ge 0.50$) without corroboration from the Local ML model ($\text{ML} \ge 0.25$).
+* **Mutual Corroboration Required for Harmful ($\ge 0.75$)**:
+  $$\text{Max possible contribution from ML alone} = \frac{2}{3} \times 1.00 = \mathbf{0.667} < 0.75$$
+  Neither text model can unilaterally escalate a text-only message to **Harmful** ($S \ge 0.75$) without corroboration from the other layer (requires at least $\text{DL} \ge 0.25$ even when $\text{ML} = 1.0$).
 
 ---
 

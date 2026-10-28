@@ -14,14 +14,14 @@ KwagoBackend combines three distinct threat detection layers to determine an ove
 
 ---
 
-### Ensemble Decision Logic Matrix
+### Ensemble Decision & Threshold Matrix
 
-| Case Scenario | Active Layers & Weights | Ensemble Formula |
-| :--- | :--- | :--- |
-| **Case 1: No Web Link (or Only Email Address)** | 66.7% Local ML + 33.3% CNN DL | $S = (0.667 \times \text{ML}) + (0.333 \times \text{DL})$ |
-| **Case 2: Web Link Present, but Scan Pending / Unavailable** | 66.7% Local ML + 33.3% CNN DL *(+ Caution Warning Appended)* | $S = (0.667 \times \text{ML}) + (0.333 \times \text{DL})$ |
-| **Case 3A: Web Link(s) Present & Scan Completed (Clean / Suspicious)** | 60% Local ML + 20% CNN DL + 20% URL Scan | $S = (0.60 \times \text{ML}) + (0.20 \times \text{DL}) + (0.20 \times \text{URL})$ |
-| **Case 3B: Any Web Link Confirmed Malicious ($S_{\text{URL}} \ge 0.45$)** | **50% URL Scan** + 35% Local ML + 15% CNN DL *(+ Escalation Floor $\ge 0.75$)* | $S = \max\big(0.75, (0.50 \times \text{URL}) + (0.35 \times \text{ML}) + (0.15 \times \text{DL})\big)$ |
+| Case | Model Weights | Safe | Suspicious | Harmful | Ensemble Formula |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **Offline (Local ML)** | 50% RF / 50% XGBoost | $S < 0.40$ | $0.40 \le S < 0.70$ | $S \ge 0.70$ | $S = (0.50 \times \text{RF}) + (0.50 \times \text{XGB})$ |
+| **Online (With URL)** | 20% DL / 60% ML / 20% URL | $S < 0.50$ | $0.50 \le S < 0.75$ | $S \ge 0.75$ | $S = (0.20 \times \text{DL}) + (0.60 \times \text{ML}) + (0.20 \times \text{URL})$ |
+| **Online (No URL / Pending URL)** | 33.3% DL / 66.7% ML | $S < 0.50$ | $0.50 \le S < 0.75$ | $S \ge 0.75$ | $S = (0.333 \times \text{DL}) + (0.667 \times \text{ML})$ |
+| **Confirmed Malicious URL Override ($S_{\text{URL}} \ge 0.45$)** | 50% URL / 35% ML / 15% DL *(Floor $\ge 0.75$)* | — | — | $S \ge 0.75$ | $S = \max\big(0.75, (0.50 \times \text{URL}) + (0.35 \times \text{ML}) + (0.15 \times \text{DL})\big)$ |
 
 ---
 
@@ -70,15 +70,15 @@ To respect VirusTotal API quotas and achieve sub-second response times for mobil
 
 `````text
 Incoming URL
-     │
-     ▼
-[ 1. In-Memory Cache (RAM) ] ── (Hit) ──► Re-evaluate Boost Tiers ──► Return (< 1ms)
-     │ (Miss)
-     ▼
-[ 2. Supabase Global Cache ] ── (Hit) ──► Store in RAM ──► Return (~50ms)
-     │ (Miss)
-     ▼
-[ 3. Live VirusTotal API v3 ] ──► Store in Supabase & RAM ──► Return (5-12s)
+     â”‚
+     â–¼
+[ 1. In-Memory Cache (RAM) ] â”€â”€ (Hit) â”€â”€â–º Re-evaluate Boost Tiers â”€â”€â–º Return (< 1ms)
+     â”‚ (Miss)
+     â–¼
+[ 2. Supabase Global Cache ] â”€â”€ (Hit) â”€â”€â–º Store in RAM â”€â”€â–º Return (~50ms)
+     â”‚ (Miss)
+     â–¼
+[ 3. Live VirusTotal API v3 ] â”€â”€â–º Store in Supabase & RAM â”€â”€â–º Return (5-12s)
 ```
 
 1. **In-Memory Cache (`memory_cache`)**:
@@ -107,7 +107,7 @@ When a URL misses the cache, the backend processes it asynchronously using `aioh
    * If no pre-existing report is found, the URL is submitted for on-demand analysis.
    * The backend polls `GET /api/v3/analyses/{scan_id}` with exponential backoff (up to 15 attempts, 2-second interval) until `status == "completed"`.
 4. **Non-Blocking Pending Fallback**:
-   * If polling takes too long or VirusTotal is under heavy queue load, the endpoint returns `"verdict": "pending"` with `"score": null` instead of failing or timing out. This allows the SMS ensemble to dynamically rebalance weights equally across the text ML ($50\%$) and DL ($50\%$) layers without blocking the mobile user.
+   * If polling takes too long or VirusTotal is under heavy queue load, the endpoint returns `"verdict": "pending"` with `"score": null` instead of failing or timing out. This allows the SMS ensemble to dynamically rebalance weights across the text layers ($33.3\%$ DL and $66.7\%$ ML) without blocking the mobile user.
 
 ---
 
@@ -182,17 +182,17 @@ SMS messages often contain multiple web links (e.g., primary phishing link + bac
 
 1. **Multi-URL Resolution & Email Filtering ([`resolve_candidate_urls`](file:///c:/Users/Soon1/OneDrive/Desktop/Model-API%20testing/app/scanner.py))**:
    * Accepts `extracted_urls: [...]`, `urls: [...]`, and `extracted_url` in the request payload, deduplicating links while normalizing scheme-less domains (such as `www.promo-bonus.ph` $\rightarrow$ `http://www.promo-bonus.ph` for VirusTotal and host parsing).
-   * Automatically ignores email addresses (e.g., `support@gcash-help.com`, `hr@company-recruitment.com`). If a message contains only an email address (`has_url: false`, `urls: []`), it is evaluated strictly via the text ensemble (50% ML / 50% DL).
+   * Automatically ignores email addresses (e.g., `support@gcash-help.com`, `hr@company-recruitment.com`). If a message contains only an email address (`has_url: false`, `urls: []`), it is evaluated strictly via the text ensemble (33.3% DL / 66.7% ML).
 2. **Malicious Link Dominance ([`aggregate_multi_url_results`](file:///c:/Users/Soon1/OneDrive/Desktop/Model-API%20testing/app/scanner.py) & [`compute_ensemble_score`](file:///c:/Users/Soon1/OneDrive/Desktop/Model-API%20testing/app/scanner.py))**:
    * **Anti-Dilution Across Multiple Links**: If **even a single URL** in a multi-link message is flagged as `malicious` ($S_{\text{URL}} \ge 0.45$), the aggregated URL verdict is immediately set to `malicious` and the highest-scoring malicious URL dominates the URL threat score ($90\%$ weight on the peak malicious link, floored at its full threat score so benign links in the same SMS cannot dilute it).
-   * **Elevated Ensemble Weighting**: When any URL is confirmed malicious, the overall SMS ensemble shifts weight heavily toward the URL scanner (**50% URL / 35% ML / 15% DL** instead of the standard 25% URL / 50% ML / 25% DL) and enforces a minimum **`Harmful`** escalation floor ($\ge 0.85$).
+   * **Elevated Ensemble Weighting**: When any URL is confirmed malicious, the overall SMS ensemble shifts weight heavily toward the URL scanner (**50% URL / 35% ML / 15% DL** instead of the standard 20% DL / 60% ML / 20% URL) and enforces a minimum **`Harmful`** escalation floor ($\ge 0.75$).
 3. **Separate Supabase Persistence per URL ([`save_url_scan_to_db`](file:///c:/Users/Soon1/OneDrive/Desktop/Model-API%20testing/app/scanner.py))**:
    * Every URL in the message is saved **separately** in Supabase:
      * Each unique link is parsed (`scheme`, `host`, `path`, `query`) and stored as its own row in `public.url`.
-     * Each link's individual VirusTotal scan result and `is_malicious` flag are stored as a separate record in `public.url_analysis` linked to the message's `sms_id` (when `allow_save = true` and `overall_score >= 0.65`) or under `CACHE_SMS` for global threat caching.
+     * Each link's individual VirusTotal scan result and `is_malicious` flag are stored as a separate record in `public.url_analysis` linked to the message's `sms_id` (when `allow_save = true` and `overall_score >= 0.50`) or under `CACHE_SMS` for global threat caching.
 4. **Clean URL Mitigation & Pending URL Caution**:
-   * **Clean URL Mitigation**: If all links in the message are verified **Clean** ($S_{\text{URL}} < 0.20$) and the weighted score is $< 0.65$, the message is verified as **`Safe`**.
-   * **Pending URL Caution**: If URL scans are `pending`, the ensemble calculates over the text layers ($50\%$ ML / $50\%$ DL) and appends a caution notice.
+   * **Clean URL Mitigation**: If all links in the message are verified **Clean** ($S_{\text{URL}} < 0.20$) and the weighted score is $< 0.50$, the message is verified as **`Safe`**.
+   * **Pending URL Caution**: If URL scans are `pending`, the ensemble calculates over the text layers ($33.3\%$ DL / $66.7\%$ ML) and appends a caution notice.
 
 ---
 
@@ -562,15 +562,15 @@ To comply with data privacy standards (e.g. Philippine Data Privacy Act of 2012)
 
 `````text
 Incoming User SMS / Report
-         │
-         ▼
-[ 1. PII Anonymization ] ──► Masks 4-8 digit OTPs (<OTP>) & Mobile numbers (<PHONE>)
-         │
-         ▼
-[ 2. Fernet AES Encryption ] ──► Encrypts using DB_ENCRYPTION_KEY (.env)
-         │
-         ▼
-[ 3. Supabase Database ] ──► Stores unreadable ciphertext tokens (gAAAAABn...)
+         â”‚
+         â–¼
+[ 1. PII Anonymization ] â”€â”€â–º Masks 4-8 digit OTPs (<OTP>) & Mobile numbers (<PHONE>)
+         â”‚
+         â–¼
+[ 2. Fernet AES Encryption ] â”€â”€â–º Encrypts using DB_ENCRYPTION_KEY (.env)
+         â”‚
+         â–¼
+[ 3. Supabase Database ] â”€â”€â–º Stores unreadable ciphertext tokens (gAAAAABn...)
 ```
 
 * **Zero Plaintext at Rest:** The database never contains readable user SMS messages or phone numbers.
@@ -599,4 +599,4 @@ python scripts/merge_feedback_dataset.py --input retraining_data.csv --base "Thr
 1. Open [`models/kwago_Training_CNNBiGRU.ipynb`](models/kwago_Training_CNNBiGRU.ipynb) or [`models/kwago_Training_RFXGB.ipynb`](models/kwago_Training_RFXGB.ipynb).
 2. Re-run training with the enriched dataset.
 3. Export the updated model to [`models/cnn_bigru_model.onnx`](models/cnn_bigru_model.onnx) and update tokenizer weights.
-4. Restart FastAPI backend—it will automatically load the newly trained ONNX model on startup.
+4. Restart FastAPI backendâ€”it will automatically load the newly trained ONNX model on startup.

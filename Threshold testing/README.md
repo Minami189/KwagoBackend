@@ -62,6 +62,7 @@ python "Threshold testing/generate_scanned_sms_csv.py"
 ---
 
 ## Key Benchmark Takeaways
-* **Suspicious Cutoff (`0.65`)**: Optimal multi-layer balance ($F_1 = 0.9639$, Accuracy $= 97.34\%$, Precision $= 97.31\%$).
-* **Harmful Boundary (`0.85`)**: Filters legitimate bank OTPs and telco notices to a False Positive Rate of just **$1.56\%$** ($97.22\%$ precision).
+* **Offline (Local ML — `50% RF / 50% XGBoost`)**: Uses thresholds of `Safe < 0.40`, `Suspicious: 0.40 <= S < 0.70`, and `Harmful: S >= 0.70` to maximize offline recall while keeping false alarms minimal.
+* **Online (No URL — `33.3% DL / 66.7% ML`)**: Evaluates text-only messages (and pending URL scans) with thresholds of `Safe < 0.50`, `Suspicious: 0.50 <= S < 0.75`, and `Harmful: S >= 0.75`.
+* **Online (With URL — `20% DL / 60% ML / 20% URL`)**: Combines deep learning, local ML, and VirusTotal URL reputation at `Safe < 0.50`, `Suspicious: 0.50 <= S < 0.75`, and `Harmful: S >= 0.75` ($F_1 = 0.9594$, Recall $= 97.84\%$ at `0.50`; Precision $= 99.22\%$, FPR $= 0.39\%$ at `0.75`).
 * **Malicious URL Override**: Recovers **$100\%$ ($31/31$)** of evasive phishing attacks that hid behind harmless-sounding text.
