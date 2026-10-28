@@ -8,19 +8,32 @@ Deduplicates text to ensure no exact duplicates are introduced,
 and maintains proper column formatting for the retraining notebooks.
 
 Usage:
-    python merge_feedback_dataset.py [--input retraining_data.csv] [--base "Threshold testing/sms_cleaned.csv"] [--output "Threshold testing/sms_cleaned_updated.csv"]
+    python scripts/merge_feedback_dataset.py [--input retraining_data.csv] [--base "Threshold testing/sms_cleaned.csv"] [--output "Threshold testing/sms_cleaned.csv"]
 """
 
 import argparse
 import csv
+import sys
 from datetime import datetime
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 
 def merge_datasets(input_csv: str, base_csv: str, output_csv: str):
     input_path = Path(input_csv)
+    if not input_path.is_absolute():
+        input_path = PROJECT_ROOT / input_path
+
     base_path = Path(base_csv)
+    if not base_path.is_absolute():
+        base_path = PROJECT_ROOT / base_path
+
     output_path = Path(output_csv)
+    if not output_path.is_absolute():
+        output_path = PROJECT_ROOT / output_path
 
     if not input_path.exists():
         print(f"[!] Error: Feedback data file not found at {input_path.resolve()}")

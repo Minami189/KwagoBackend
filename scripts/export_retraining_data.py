@@ -6,7 +6,7 @@ decrypts them in-memory using DB_ENCRYPTION_KEY, and exports them into a clean C
 ready for retraining the Deep Learning (CNN-BiGRU) and Local ML models.
 
 Usage:
-    python export_retraining_data.py [--output output_path.csv] [--status verified|all]
+    python scripts/export_retraining_data.py [--output output_path.csv] [--status verified|all]
 """
 
 import argparse
@@ -17,7 +17,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Ensure project root is in python path
-PROJECT_ROOT = Path(__file__).parent.resolve()
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 

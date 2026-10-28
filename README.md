@@ -33,7 +33,7 @@ KwagoBackend combines three distinct threat detection layers to determine an ove
 | **Suspicious** | **50% to 75% ($0.50 \le S < 0.75$)** | Unsolicited, promotional, or high-urgency content. | Orange (`#FFF07048`) | Caution alert shown; logged to DB if `allow_save = true`. |
 | **Harmful** | **Above 75% ($S \ge 0.75$)** | High risk SMS scam / credential phishing. | Red (`#FF4D55`) | Threat warning generated; logged to DB if `allow_save = true`. |
 
-> Detailed mathematical derivations, tipping points, and dataset evaluations on `sms_cleaned.csv` are documented in [optimal_threshold_calculation.md](file:///c:/Users/jerma/OneDrive/Desktop/KwagoBackend/optimal_threshold_calculation.md).
+> Detailed mathematical derivations, tipping points, and dataset evaluations on `sms_cleaned.csv` are documented in [`Threshold testing/optimal_threshold_calculation.md`](Threshold%20testing/optimal_threshold_calculation.md).
 
 ---
 
@@ -68,7 +68,7 @@ The URL threat analysis layer evaluates embedded links in real time to catch act
 
 To respect VirusTotal API quotas and achieve sub-second response times for mobile users, the backend implements a **dual-layer caching pipeline**:
 
-```text
+`````text
 Incoming URL
      │
      ▼
@@ -209,24 +209,45 @@ Every newly evaluated URL is stored in Supabase with host normalization (`public
 
 ```text
 KwagoBackend/
-├── app/
-│   ├── __init__.py
-│   ├── main.py            (FastAPI application & API routes)
-│   ├── scanner.py         (Ensemble scoring, ONNX model inference, VirusTotal scanner, Supabase logging)
-│   ├── schemas.py         (Pydantic request & response schemas)
-│   └── source_weights.csv (Engine weights for VirusTotal threat scoring)
-├── models/
-│   ├── cnn_bigru_model.onnx (CNN-BiGRU ONNX model file)
-│   └── tokenizer_b.pkl    (Pickle tokenizer object)
-├── .env                   (Local environment variables - gitignored)
-├── .gitignore
-├── README.md
-├── requirements.txt
-└── walkthrough.md
+|-- app/                  (FastAPI backend application)
+|   |-- __init__.py
+|   |-- main.py            (FastAPI application & API routes)
+|   |-- scanner.py         (Ensemble scoring, ONNX inference, VirusTotal scanner, Supabase logging)
+|   |-- crypto_utils.py    (Fernet AES-256 database encryption & PII anonymization)
+|   |-- schemas.py         (Pydantic request & response schemas)
+|   \-- source_weights.csv (Vendor reputation weights for VirusTotal threat scoring)
+|-- database/             (PostgreSQL database schema migrations for Supabase)
+|   |-- misclassification_reports_table.sql
+|   |-- ntc_report_table.sql
+|   \-- README.md
+|-- docs/                 (Technical specifications & scoring formulas)
+|   |-- url_scoring_explanation.md
+|   |-- weighted_verdict_plan.md
+|   \-- README.md
+|-- models/               (Server NLP deep learning ONNX models & notebooks)
+|   |-- cnn_bigru_model.onnx
+|   |-- tokenizer_b.pkl
+|   \-- kwago_Training_CNNBiGRU.ipynb
+|-- scripts/              (Maintenance & feedback retraining utilities)
+|   |-- export_retraining_data.py
+|   |-- merge_feedback_dataset.py
+|   \-- README.md
+|-- Threshold testing/    (Benchmarking, grid search, and dataset simulations)
+|   |-- calculate_optimal_thresholds.py
+|   |-- grid_search_thresholds_weights.py
+|   |-- generate_scanned_sms_csv.py
+|   |-- optimal_threshold_calculation.md
+|   |-- sms_cleaned.csv
+|   \-- README.md
+|-- .env                  (Local environment variables - gitignored)
+|-- .gitignore
+|-- .vercelignore
+|-- README.md
+|-- requirements.txt
+\-- vercel.json
 ```
 
 ---
-
 ## 4. Setup & Environment Configuration
 
 ### 1. Create & Activate Virtual Environment
@@ -539,7 +560,7 @@ To comply with data privacy standards (e.g. Philippine Data Privacy Act of 2012)
 
 ### A. Privacy & Encryption Pipeline
 
-```text
+`````text
 Incoming User SMS / Report
          │
          ▼
@@ -565,13 +586,13 @@ When sufficient user misclassification reports or flagged samples have accumulat
 #### Step 1: Export and Decrypt Data
 Run the automated exporter to pull and decrypt reports in-memory:
 ```bash
-python export_retraining_data.py --output retraining_data.csv --status all
+python scripts/export_retraining_data.py --output retraining_data.csv --status all
 ```
 
 #### Step 2: Merge into Main Dataset
 Deduplicate and merge the newly labeled feedback samples into the training dataset:
 ```bash
-python merge_feedback_dataset.py --input retraining_data.csv --base "Threshold testing/sms_cleaned.csv"
+python scripts/merge_feedback_dataset.py --input retraining_data.csv --base "Threshold testing/sms_cleaned.csv"
 ```
 
 #### Step 3: Retrain and Export Updated ONNX

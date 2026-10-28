@@ -9,6 +9,11 @@ __pycache__/
 # Threshold testing scripts, datasets, and RF/XGB models (not needed in server runtime)
 Threshold testing/
 
+# Standalone maintenance scripts, database migrations, and docs
+database/
+docs/
+scripts/
+
 # Unused training artifacts and notebooks inside models/
 models/*.keras
 models/*.ipynb
@@ -16,6 +21,6 @@ models/predict_interactive.py
 models/meta_classifier.pkl
 models/label_encoder.pkl
 
-# Documentation and SQL migration scripts
+# Root documentation and SQL migration scripts
 *.md
 *.sql
