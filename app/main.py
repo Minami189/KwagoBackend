@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 import uvicorn
 from fastapi import FastAPI, HTTPException, status, Depends, Query
@@ -21,10 +22,31 @@ from app.schemas import (
 
 sms_classifier = None
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global sms_classifier
+    try:
+        sms_classifier = scanner.SMSClassifier()
+        print("SMS Classifier successfully loaded!")
+    except Exception as e:
+        print(f"Warning: SMS Classifier could not be loaded: {e}")
+
+    try:
+        await scanner.init_db()
+    except Exception as e:
+        print(f"Warning: DB initialization error: {e}")
+
+    yield
+
+    await scanner.close_db()
+
+
 app = FastAPI(
     title="KwagoBackend URL Threat Scanner",
     description="FastAPI backend for analyzing URLs using the VirusTotal API with a custom weighted final verdict algorithm.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Enable CORS for cross-origin requests from web/mobile frontends
@@ -50,28 +72,6 @@ def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or unauthorized API key."
         )
-
-
-
-@app.on_event("startup")
-async def startup_event():
-    global sms_classifier
-    try:
-        sms_classifier = scanner.SMSClassifier()
-        print("SMS Classifier successfully loaded!")
-    except Exception as e:
-        print(f"Warning: SMS Classifier could not be loaded: {e}")
-    
-    # Open database connection pool
-    await scanner.init_db()
-
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    # Close database connection pool
-    await scanner.close_db()
-
 
 
 # --- Routes ---
@@ -409,4 +409,6 @@ async def report_misclassification(request: MisclassificationReportRequest):
 
 if __name__ == "__main__":
     # Allow running directly via python -m app.main or python app/main.py from workspace root
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    reload = os.environ.get("RELOAD", "false").lower() in ("true", "1")
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=reload)

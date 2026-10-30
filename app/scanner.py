@@ -911,12 +911,17 @@ async def analyze_sms_url(url: str) -> Dict[str, Any]:
 
 async def init_db():
     """
-    Verify Supabase connection on startup.
+    Verify Supabase connection on startup with a timeout so server binding is never blocked.
     """
     if supabase:
         try:
-            # Query the system cache anchor to verify connection
-            supabase.table("sms_message").select("sms_id").eq("sms_id", "CACHE_SMS").execute()
+            # Run test query in thread with a 5s timeout to prevent blocking the event loop
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    lambda: supabase.table("sms_message").select("sms_id").eq("sms_id", "CACHE_SMS").execute()
+                ),
+                timeout=5.0
+            )
             print("Supabase HTTP connection: Verified successfully!")
         except Exception as e:
             print(f"Warning: Supabase HTTP connection verification failed: {e}")
