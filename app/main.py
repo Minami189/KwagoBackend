@@ -1,3 +1,4 @@
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
@@ -21,24 +22,38 @@ from app.schemas import (
 )
 
 sms_classifier = None
+_classifier_lock = asyncio.Lock()
+
+
+async def get_or_load_classifier():
+    global sms_classifier
+    if sms_classifier is not None:
+        return sms_classifier
+    async with _classifier_lock:
+        if sms_classifier is None:
+            try:
+                sms_classifier = await asyncio.to_thread(scanner.SMSClassifier)
+                print("SMS Classifier successfully loaded!", flush=True)
+            except Exception as e:
+                print(f"Warning: SMS Classifier could not be loaded: {e}", flush=True)
+    return sms_classifier
+
+
+async def _startup_background_tasks():
+    try:
+        await scanner.init_db()
+    except Exception as e:
+        print(f"Warning: DB initialization error: {e}", flush=True)
+    await get_or_load_classifier()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global sms_classifier
-    try:
-        sms_classifier = scanner.SMSClassifier()
-        print("SMS Classifier successfully loaded!")
-    except Exception as e:
-        print(f"Warning: SMS Classifier could not be loaded: {e}")
-
-    try:
-        await scanner.init_db()
-    except Exception as e:
-        print(f"Warning: DB initialization error: {e}")
-
+    # Run heavy ONNX initialization in a background task so Uvicorn binds $PORT immediately
+    bg_task = asyncio.create_task(_startup_background_tasks())
     yield
-
+    if not bg_task.done():
+        bg_task.cancel()
     await scanner.close_db()
 
 
@@ -197,14 +212,8 @@ async def scan_sms_message(request: SmsScanRequest):
             detail="The SMS message input field cannot be empty."
         )
 
-    global sms_classifier
-    if sms_classifier is None:
-        try:
-            sms_classifier = scanner.SMSClassifier()
-        except Exception as e:
-            print(f"Warning: Lazy-loading SMS Classifier failed: {e}")
-
-    if sms_classifier is None:
+    classifier = await get_or_load_classifier()
+    if classifier is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="The SMS classifier model or tokenizer is not available on the server."
@@ -411,4 +420,8 @@ if __name__ == "__main__":
     # Allow running directly via python -m app.main or python app/main.py from workspace root
     port = int(os.environ.get("PORT", 8000))
     reload = os.environ.get("RELOAD", "false").lower() in ("true", "1")
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=reload)
+    print(f"Binding KwagoBackend server on 0.0.0.0:{port} (reload={reload})...", flush=True)
+    if reload:
+        uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)
+    else:
+        uvicorn.run(app, host="0.0.0.0", port=port)

@@ -595,12 +595,21 @@ class SMSClassifier:
         if not TOKENIZER_PATH.exists():
             raise FileNotFoundError(f"Tokenizer pickle file not found at {TOKENIZER_PATH}")
 
-        print(f"Loading ONNX model from {ONNX_MODEL_PATH}...")
-        self.session = ort.InferenceSession(str(ONNX_MODEL_PATH))
+        print(f"Loading ONNX model from {ONNX_MODEL_PATH}...", flush=True)
+        sess_options = ort.SessionOptions()
+        sess_options.intra_op_num_threads = 1
+        sess_options.inter_op_num_threads = 1
+        sess_options.add_session_config_entry("session.intra_op.allow_spinning", "0")
+        sess_options.add_session_config_entry("session.inter_op.allow_spinning", "0")
+        self.session = ort.InferenceSession(
+            str(ONNX_MODEL_PATH),
+            sess_options=sess_options,
+            providers=["CPUExecutionProvider"],
+        )
         self.input_name = self.session.get_inputs()[0].name
         self.max_len = 150
 
-        print(f"Loading Tokenizer from {TOKENIZER_PATH}...")
+        print(f"Loading Tokenizer from {TOKENIZER_PATH}...", flush=True)
         with open(TOKENIZER_PATH, "rb") as f:
             tok_obj = InspectUnpickler(f).load()
             self.word_index = getattr(tok_obj, "word_index", {})
