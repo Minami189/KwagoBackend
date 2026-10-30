@@ -91,10 +91,11 @@ def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)
 
 # --- Routes ---
 
-@app.get("/", status_code=status.HTTP_200_OK)
+@app.api_route("/", methods=["GET", "HEAD"], status_code=status.HTTP_200_OK)
 async def root():
     """
     Root endpoint serving basic API metadata and docs linkage.
+    Supports both GET and HEAD requests for uptime monitoring.
     """
     return {
         "name": "KwagoBackend URL Threat Scanner API",
@@ -104,10 +105,11 @@ async def root():
     }
 
 
-@app.get("/health", status_code=status.HTTP_200_OK)
+@app.api_route("/health", methods=["GET", "HEAD"], status_code=status.HTTP_200_OK)
 async def health_check():
     """
     Simple health check endpoint to verify that the service is running and healthy.
+    Supports both GET and HEAD requests for uptime monitoring.
     """
     return {
         "status": "healthy",
