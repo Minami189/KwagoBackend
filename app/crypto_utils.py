@@ -64,3 +64,17 @@ def decrypt_text(ciphertext: Optional[str]) -> Optional[str]:
     except Exception:
         # Returns raw text if it was not encrypted (backwards compatibility)
         return ciphertext
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: python -m app.crypto_utils <ciphertext> OR --encrypt <text>")
+        sys.exit(0)
+
+    if sys.argv[1] == "--encrypt":
+        raw_text = " ".join(sys.argv[2:])
+        print("Encrypted:", encrypt_text(raw_text, scrub_pii=True))
+    else:
+        token = sys.argv[1]
+        print("Decrypted:", decrypt_text(token))
